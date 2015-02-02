@@ -90,13 +90,13 @@ function buildFactorMatrix(tab, factors) {
     return Sylvester.Matrix.create(Kd);
 }
 
-function buildFactorSumMatrix(tab, factors, y) {
+function buildFactorSumVector(tab, factors, y) {
     var Kd = [];
     for (var p = 0; p < factors.length; p++) {
         var s = sumOccurrences(tab, factors[p], y)
-        Kd.push([s]);
+        Kd.push(s);
     }
-    return Sylvester.Matrix.create(Kd);
+    return Sylvester.Vector.create(Kd);
 }
 
 sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
@@ -118,7 +118,7 @@ for (var k = 1; k < tools.length; k++) {
 }
 
 var K = buildFactorMatrix(sige, cpm_factors);
-var S = buildFactorSumMatrix(sige, cpm_factors, sige_th);
+var S = buildFactorSumVector(sige, cpm_factors, sige_th);
 var a = K.inverse().multiply(S);
 console.log(K.inspect());
 console.log(S.inspect());
