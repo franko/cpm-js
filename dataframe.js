@@ -25,7 +25,7 @@ DataFrame.prototype = {
 function countOccurrences(t, values) {
     var count = 0;
     var kno = values.length;
-    for (var i = 0; i < t.nrows; i++) {
+    for (var i = 1; i <= t.nrows; i++) {
         var match = 0;
         for (var k = 0; k < kno; k++) {
             var j = values[k].column, xval = values[k].value;
