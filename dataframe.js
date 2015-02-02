@@ -90,6 +90,15 @@ function buildFactorMatrix(tab, factors) {
     return Sylvester.Matrix.create(Kd);
 }
 
+function buildFactorSumMatrix(tab, factors, y) {
+    var Kd = [];
+    for (var p = 0; p < factors.length; p++) {
+        var s = sumOccurrences(tab, factors[p], y)
+        Kd.push([s]);
+    }
+    return Sylvester.Matrix.create(Kd);
+}
+
 var cpm_factors = [
     [{column: 4, value: 'QFX1001'}, {column: 5, value: 1}]
 ];
