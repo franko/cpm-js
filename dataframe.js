@@ -48,8 +48,8 @@ DataFrameView.prototype = {
     }
 };
 
-function countOccurrences(t, values) {
-    var count = 0;
+function sumOccurrences(t, values, y) {
+    var sum = 0;
     var kno = values.length;
     for (var i = 1; i <= t.nrows; i++) {
         var match = 0;
@@ -59,9 +59,13 @@ function countOccurrences(t, values) {
                 match += 1;
             }
         }
-        count += (match == kno ? 1 : 0);
+        if (y) {
+            sum += (match == kno ? y.e(i, 1) : 0);
+        } else {
+            sum += (match == kno ? 1 : 0);
+        }
     }
-    return count;
+    return sum;
 }
 
 var t = DataFrame.create(3, 2, ['boo', 3, 'foo', 3.14, 'data', -1.15]);
@@ -74,10 +78,10 @@ function buildFactorMatrix(tab, factors) {
         for (var q = 0; q < factors.length; q++) {
             var s = 0;
             if (p === q) {
-                s = countOccurrences(tab, factors[p]);
+                s = sumOccurrences(tab, factors[p]);
             } else {
                 var cf = [].concat(factors[p]).concat(factors[q]);
-                s = countOccurrences(tab, cf);
+                s = sumOccurrences(tab, cf);
             }
             Krow.push(s);
         }
@@ -101,5 +105,5 @@ for (var k = 1; k < tools.length; k++) {
 
 var K = buildFactorMatrix(sige, cpm_factors);
 console.log(K.inspect());
-console.log("count:", countOccurrences(sige, cpm_factors[17]));
+console.log("count:", sumOccurrences(sige, cpm_factors[17]));
 console.log(">>", t.e(2,1), t.e(2, 2));
