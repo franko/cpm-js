@@ -68,7 +68,6 @@ function sumOccurrences(t, values, y) {
     return sum;
 }
 
-var t = DataFrame.create(3, 2, ['boo', 3, 'foo', 3.14, 'data', -1.15]);
 var sige = DataFrame.create(1020, 9, cpm_sige_data)
 
 function buildFactorMatrix(tab, factors) {
@@ -99,8 +98,13 @@ function buildFactorSumMatrix(tab, factors, y) {
     return Sylvester.Matrix.create(Kd);
 }
 
+sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
+for (var i = 1; i <= 10; i++) {
+    console.log("sige_th:", sige_th.e(i, 1));
+}
+
 var cpm_factors = [
-    [{column: 4, value: 'QFX1001'}, {column: 5, value: 1}]
+    []
 ];
 
 for (var site = 2; site <= 17; site++) {
@@ -113,6 +117,8 @@ for (var k = 1; k < tools.length; k++) {
 }
 
 var K = buildFactorMatrix(sige, cpm_factors);
+var S = buildFactorSumMatrix(sige, cpm_factors, sige_th);
+var a = K.inverse().multiply(S);
 console.log(K.inspect());
-console.log("count:", sumOccurrences(sige, cpm_factors[17]));
-console.log(">>", t.e(2,1), t.e(2, 2));
+console.log(S.inspect());
+console.log(a.inspect());
