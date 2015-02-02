@@ -48,22 +48,23 @@ DataFrameView.prototype = {
     }
 };
 
+function matchFactors(t, i, values) {
+    var match = 0;
+    var kno = values.length;
+    for (var k = 0; k < kno; k++) {
+        var j = values[k].column, xval = values[k].value;
+        if (t.e(i, j) === xval) {
+            match += 1;
+        }
+    }
+    return (match == kno);
+}
+
 function sumOccurrences(t, values, y) {
     var sum = 0;
-    var kno = values.length;
     for (var i = 1; i <= t.nrows; i++) {
-        var match = 0;
-        for (var k = 0; k < kno; k++) {
-            var j = values[k].column, xval = values[k].value;
-            if (t.e(i, j) === xval) {
-                match += 1;
-            }
-        }
-        if (y) {
-            sum += (match == kno ? y.e(i, 1) : 0);
-        } else {
-            sum += (match == kno ? 1 : 0);
-        }
+        var yi = y ? y.e(i, 1) : 1;
+        sum += matchFactors(t, i, values) ? yi : 0;
     }
     return sum;
 }
