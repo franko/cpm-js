@@ -23,7 +23,29 @@ DataFrame.prototype = {
 
     e: function(i, j) {
         return this.data[(i-1)*this.ncols + (j-1)];
+    }
+};
+
+DataFrameView = function() { };
+
+DataFrameView.create = function(Tsrc, i0, j0, nrows, ncols) {
+    var T = new DataFrameView();
+    T.setView(Tsrc, i0, j0, nrows, ncols);
+    return T;
+};
+
+DataFrameView.prototype = {
+    setView: function(Tsrc, i0, j0, nrows, ncols) {
+        this.data = Tsrc.data;
+        this.start = Tsrc.indexOf(i0, j0);
+        this.stride = Tsrc.ncols;
+        this.nrows = nrows;
+        this.ncols = ncols;
     },
+
+    e: function(i, j) {
+        return this.data[this.start + (i-1)*this.stride + (j-1)];
+    }
 };
 
 function countOccurrences(t, values) {
