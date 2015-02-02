@@ -17,6 +17,10 @@ DataFrame.prototype = {
         this.data = data;
     },
 
+    indexOf: function(i, j) {
+        return (i-1)*this.ncols + (j-1);
+    },
+
     e: function(i, j) {
         return this.data[(i-1)*this.ncols + (j-1)];
     },
