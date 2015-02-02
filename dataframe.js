@@ -99,6 +99,19 @@ function buildFactorSumVector(tab, factors, y) {
     return Sylvester.Vector.create(Kd);
 }
 
+function evalExpected(factors, estimates, tab) {
+    var Yd = [];
+    for (var i = 1; i <= tab.nrows; i++) {
+        var sum = 0;
+        for (var p = 0; p < factors.length; p++) {
+            var match = matchFactors(tab, i, factors[p]);
+            sum += match ? estimates.e(p+1) : 0;
+        }
+        Yd.push(sum);
+    }
+    return Sylvester.Vector.create(Yd);
+}
+
 sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
 for (var i = 1; i <= 10; i++) {
     console.log("sige_th:", sige_th.e(i, 1));
@@ -119,7 +132,7 @@ for (var k = 1; k < tools.length; k++) {
 
 var K = buildFactorMatrix(sige, cpm_factors);
 var S = buildFactorSumVector(sige, cpm_factors, sige_th);
-var a = K.inverse().multiply(S);
-console.log(K.inspect());
-console.log(S.inspect());
-console.log(a.inspect());
+var est = K.inverse().multiply(S); // Estimates.
+var Yest = evalExpected(cpm_factors, est, sige);
+console.log(est.inspect());
+console.log(Yest.inspect());
