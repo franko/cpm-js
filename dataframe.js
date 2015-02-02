@@ -99,17 +99,42 @@ function buildFactorSumVector(tab, factors, y) {
     return Sylvester.Vector.create(Kd);
 }
 
+function evalRowExpected(factors, estimates, tab, i) {
+    var sum = 0;
+    for (var p = 0; p < factors.length; p++) {
+        var match = matchFactors(tab, i, factors[p]);
+        sum += match ? estimates.e(p+1) : 0;
+    }
+    return sum;
+}
+
 function evalExpected(factors, estimates, tab) {
     var Yd = [];
     for (var i = 1; i <= tab.nrows; i++) {
-        var sum = 0;
-        for (var p = 0; p < factors.length; p++) {
-            var match = matchFactors(tab, i, factors[p]);
-            sum += match ? estimates.e(p+1) : 0;
-        }
-        Yd.push(sum);
+        Yd.push(evalRowExpected(factors, estimates, tab, i));
     }
     return Sylvester.Vector.create(Yd);
+}
+
+function residualMeanSquares(tab, groups, factors, estimates, y, ncomputed) {
+    var stat = [];
+    for (var p = 0; p < groups.length; p++) {
+        var condition = groups[p];
+        for (var k = 0; k < condition.length; k++) {
+            stat.push(condition[k].value);
+        }
+        var sumsq = 0, n = 0;
+        for (var i = 1; i <= tab.nrows; i++) {
+            if (matchFactors(tab, i, condition)) {
+                var yEst = evalRowExpected(factors, estimates, tab, i);
+                var yObs = y.e(i, 1);
+                sumsq += Math.pow(yEst - yObs, 2);
+                n += 1;
+            }
+        }
+        stat.push(sumsq / (n - ncomputed));
+    }
+    return DataFrame.create(groups.length, condition.length + 1, stat);
 }
 
 sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
@@ -130,9 +155,19 @@ for (var k = 1; k < tools.length; k++) {
     cpm_factors.push([{column: 4, value: tools[k]}]);
 }
 
+var tool_factors = [];
+for (var k = 0; k < tools.length; k++) {
+    tool_factors.push([{column: 4, value: tools[k]}]);
+}
+
 var K = buildFactorMatrix(sige, cpm_factors);
 var S = buildFactorSumVector(sige, cpm_factors, sige_th);
 var est = K.inverse().multiply(S); // Estimates.
 var Yest = evalExpected(cpm_factors, est, sige);
+
 console.log(est.inspect());
-console.log(Yest.inspect());
+
+var stat = residualMeanSquares(sige, tool_factors, cpm_factors, est, sige_th, 17);
+for (var i = 1; i <= stat.nrows; i++) {
+    console.log(stat.e(i, 1), stat.e(i, 2))
+}
