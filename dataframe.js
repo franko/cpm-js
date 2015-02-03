@@ -59,7 +59,7 @@ DataFrameView.prototype = {
     }
 };
 
-function matchFactors(t, i, values) {
+var matchFactors = function(t, i, values) {
     var match = 0;
     var kno = values.length;
     for (var k = 0; k < kno; k++) {
@@ -69,20 +69,20 @@ function matchFactors(t, i, values) {
         }
     }
     return (match == kno);
-}
+};
 
-function sumOccurrences(t, values, y) {
+var sumOccurrences = function(t, values, y) {
     var sum = 0;
     for (var i = 1; i <= t.nrows; i++) {
         var yi = y ? y.e(i, 1) : 1;
         sum += matchFactors(t, i, values) ? yi : 0;
     }
     return sum;
-}
+};
 
 var sige = DataFrame.create(1020, 9, cpm_sige_data)
 
-function buildFactorMatrix(tab, factors) {
+var buildFactorMatrix = function(tab, factors) {
     var Kd = [];
     for (var p = 0; p < factors.length; p++) {
         var Krow = [];
@@ -99,35 +99,35 @@ function buildFactorMatrix(tab, factors) {
         Kd.push(Krow);
     }
     return Sylvester.Matrix.create(Kd);
-}
+};
 
-function buildFactorSumVector(tab, factors, y) {
+var buildFactorSumVector = function(tab, factors, y) {
     var Kd = [];
     for (var p = 0; p < factors.length; p++) {
         var s = sumOccurrences(tab, factors[p], y)
         Kd.push(s);
     }
     return Sylvester.Vector.create(Kd);
-}
+};
 
-function evalRowExpected(factors, estimates, tab, i) {
+var evalRowExpected = function(factors, estimates, tab, i) {
     var sum = 0;
     for (var p = 0; p < factors.length; p++) {
         var match = matchFactors(tab, i, factors[p]);
         sum += match ? estimates.e(p+1) : 0;
     }
     return sum;
-}
+};
 
-function evalExpected(factors, estimates, tab) {
+var evalExpected = function(factors, estimates, tab) {
     var Yd = [];
     for (var i = 1; i <= tab.nrows; i++) {
         Yd.push(evalRowExpected(factors, estimates, tab, i));
     }
     return Sylvester.Vector.create(Yd);
-}
+};
 
-function residualMeanSquares(tab, groups, factors, estimates, y, ncomputed) {
+var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed) {
     var stat = [];
     for (var p = 0; p < groups.length; p++) {
         var condition = groups[p];
@@ -146,9 +146,9 @@ function residualMeanSquares(tab, groups, factors, estimates, y, ncomputed) {
         stat.push(sumsq / (n - ncomputed));
     }
     return DataFrame.create(groups.length, condition.length + 1, stat);
-}
+};
 
-sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
+var sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
 for (var i = 1; i <= 10; i++) {
     console.log("sige_th:", sige_th.e(i, 1));
 }
