@@ -1,3 +1,14 @@
+/* TODO list:
+   IMPORTANT THINGS:
+   - introduce coherent naming convetions for factors & co to clarify usage
+   - comments each functions
+   - put linear estimate functions in a specific namespace
+
+   MINOR:
+   - when factors specification are incompatibles (e.g. column 5 should be X and
+     column 5 should be Y (!= X)) return immediatly zero in sumOccurrencies.
+*/
+
 DataFrame = function() { };
 
 DataFrame.create = function(nrows, ncols, data) {
