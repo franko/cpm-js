@@ -11,7 +11,12 @@
     <script>
     function onLoadFile(evt) {
         if (evt.target.readyState == FileReader.DONE) {
-            document.getElementById('file_content').textContent = evt.target.result;
+            var parser = new FXParser(evt.target.result);
+            var dt = parser.readDateTime();
+            console.log(dt);
+            var result = parser.readAll();
+            console.log(result);
+            console.log(parser);
         }
     }
 
