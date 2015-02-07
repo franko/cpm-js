@@ -228,10 +228,10 @@ FXParser.prototype = {
 
     readMeasurements: function(slot) {
         var meas = [];
-        var slot_begin = [slot];
+        // var slot_begin = [slot];
         for (var row = this.next(); row; row = this.next()) {
             if (!row[0]) break;
-            meas.push(slot_begin.concat(row.slice(1, -3)));
+            meas.push(row.slice(1, -3));
         }
         return meas;
     },
@@ -242,7 +242,7 @@ FXParser.prototype = {
             var key = row[0];
             if (key === "RESULT TYPE") {
                 var film_stack = info["MEAS SET"];
-                this.headers[film_stack] = row.slice(1);
+                this.headers[film_stack] = row.slice(1, -1);
             } else if (this.tagList.indexOf(key) >= 0) {
                 info[key] = row[1];
             } else if (key == "Site #") {
@@ -250,6 +250,10 @@ FXParser.prototype = {
                 return {info: info, measurements: meas};
             }
         }
+    },
+
+    getHeaders: function(measSet) {
+        return this.headers[measSet];
     },
 
     readAll: function() {
@@ -272,3 +276,36 @@ FXParser.prototype = {
 
     next: function() { return this.reader.next(); }
 };
+
+function renderSection(parser, section) {
+    var table = d3.select("#container").append("table");
+    var thead = table.append("thead");
+    var tbody = table.append("tbody");
+
+    var measSet = section.info["MEAS SET"];
+    var columns = parser.getHeaders(measSet);
+
+    thead.append("tr")
+        .selectAll("th")
+        .data(columns)
+        .enter()
+        .append("th")
+            .text(function(column) { return column; });
+
+    // create a row for each object in the data
+    var rows = tbody.selectAll("tr")
+        .data(section.measurements)
+        .enter()
+        .append("tr");
+
+    // create a cell in each row for each column
+    var cells = rows.selectAll("td")
+        .data(function(row) {
+            return columns.map(function(column) {
+                return {column: column, value: row[columns.indexOf(column)]};
+            });
+        })
+        .enter()
+        .append("td")
+            .text(function(d) { return d.value; });
+}
