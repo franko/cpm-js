@@ -148,37 +148,39 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
     return DataFrame.create(groups.length, condition.length + 1, stat);
 };
 
-var sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
-for (var i = 1; i <= 10; i++) {
-    console.log("sige_th:", sige_th.e(i, 1));
-}
+var cpm_test = function() {
+    var sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
+    for (var i = 1; i <= 10; i++) {
+        console.log("sige_th:", sige_th.e(i, 1));
+    }
 
-var cpm_factors = [
-    []
-];
+    var cpm_factors = [
+        []
+    ];
 
-for (var site = 2; site <= 17; site++) {
-    cpm_factors.push([{column: 5, value: site}]);
-}
+    for (var site = 2; site <= 17; site++) {
+        cpm_factors.push([{column: 5, value: site}]);
+    }
 
-var tools = ['QFX1001', 'QFX1002', 'QFX1003', 'QFX1006']
-for (var k = 1; k < tools.length; k++) {
-    cpm_factors.push([{column: 4, value: tools[k]}]);
-}
+    var tools = ['QFX1001', 'QFX1002', 'QFX1003', 'QFX1006']
+    for (var k = 1; k < tools.length; k++) {
+        cpm_factors.push([{column: 4, value: tools[k]}]);
+    }
 
-var tool_factors = [];
-for (var k = 0; k < tools.length; k++) {
-    tool_factors.push([{column: 4, value: tools[k]}]);
-}
+    var tool_factors = [];
+    for (var k = 0; k < tools.length; k++) {
+        tool_factors.push([{column: 4, value: tools[k]}]);
+    }
 
-var K = buildFactorMatrix(sige, cpm_factors);
-var S = buildFactorSumVector(sige, cpm_factors, sige_th);
-var est = K.inverse().multiply(S); // Estimates.
-var Yest = evalExpected(cpm_factors, est, sige);
+    var K = buildFactorMatrix(sige, cpm_factors);
+    var S = buildFactorSumVector(sige, cpm_factors, sige_th);
+    var est = K.inverse().multiply(S); // Estimates.
+    var Yest = evalExpected(cpm_factors, est, sige);
 
-console.log(est.inspect());
+    console.log(est.inspect());
 
-var stat = residualMeanSquares(sige, tool_factors, cpm_factors, est, sige_th, 17);
-for (var i = 1; i <= stat.nrows; i++) {
-    console.log(stat.e(i, 1), stat.e(i, 2))
-}
+    var stat = residualMeanSquares(sige, tool_factors, cpm_factors, est, sige_th, 17);
+    for (var i = 1; i <= stat.nrows; i++) {
+        console.log(stat.e(i, 1), stat.e(i, 2))
+    }
+};
