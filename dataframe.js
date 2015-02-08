@@ -313,13 +313,17 @@ function renderMeasTable(measTable) {
         .enter()
         .append("tr");
 
+    var getNamedRow = function(row) {
+        var ls = [];
+        for (var i = 0; i < columns.length; i++) {
+            ls.push({column: columns[i], value: row[i]});
+        }
+        return ls;
+    }
+
     // create a cell in each row for each column
     var cells = rows.selectAll("td")
-        .data(function(row) {
-            return columns.map(function(column) {
-                return {column: column, value: row[columns.indexOf(column)]};
-            });
-        })
+        .data(getNamedRow)
         .enter()
         .append("td")
             .text(function(d) { return d.value; });
