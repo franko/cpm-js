@@ -206,13 +206,16 @@ function csvReader(text) {
     }
     return {next: next};
 }
-var baseTagList = ['FILE', 'DATE/TIME', 'LOT ID', 'SLOT', 'RECIPE', 'MEAS SET'];
-var extraTagList = ['WAFER ID', 'SITE', 'RCP CNT'];
+var baseTagList = ['RECIPE', 'MEAS SET', 'LOT ID', 'SLOT', 'WAFER ID', 'SITE', 'RCP CNT'];
+var tabTagList = ['LOT ID', 'SLOT'];
+var extTagList = ['SITE', 'RCP CNT']
 
-FXParser = function(text) {
+FXParser = function(text, extended) {
     this.reader = csvReader(text);
     this.headers = {};
+    this.sections = [];
     this.tagList = baseTagList;
+    this.tabTagList = (extended ? tabTagList.concat(extTagList) : tabTagList);
 };
 
 FXParser.prototype = {
@@ -228,10 +231,9 @@ FXParser.prototype = {
 
     readMeasurements: function(slot) {
         var meas = [];
-        // var slot_begin = [slot];
         for (var row = this.next(); row; row = this.next()) {
             if (!row[0]) break;
-            meas.push(row.slice(1, -3));
+            meas.push(row.slice(0, -3));
         }
         return meas;
     },
@@ -241,8 +243,10 @@ FXParser.prototype = {
         for (var row = this.next(); row; row = this.next()) {
             var key = row[0];
             if (key === "RESULT TYPE") {
+                var mHeaders = row.slice(0, -1);
+                mHeaders[0] = "Site #";
                 var film_stack = info["MEAS SET"];
-                this.headers[film_stack] = row.slice(1, -1);
+                this.headers[film_stack] = mHeaders;
             } else if (this.tagList.indexOf(key) >= 0) {
                 info[key] = row[1];
             } else if (key == "Site #") {
@@ -252,38 +256,49 @@ FXParser.prototype = {
         }
     },
 
+    readAll: function() {
+        while (true) {
+            var section = this.readSection();
+            if (!section) break;
+            this.sections.push(section);
+        }
+    },
+
     getHeaders: function(measSet) {
         return this.headers[measSet];
     },
 
-    readAll: function() {
-        var result = {};
-        while (true) {
-            var section = this.readSection();
-            if (!section) break;
+    createMeasTable: function(measSet) {
+        var fullHeaders = this.tabTagList.slice();
+        var mHeaders = this.headers[measSet];
+        for (var i = 0; i < mHeaders.length; i++) {
+            fullHeaders.push(mHeaders[i]);
+        }
+        var data = [];
+        for (var i in this.sections) {
+            var section = this.sections[i];
             var info = section.info, meas = section.measurements;
-            var measSet = info["MEAS SET"];
-            if (result[measSet]) {
+            if (info["MEAS SET"] == measSet) {
+                var info_array = this.tabTagList.map(function(h) { return info[h]; });
                 for (var i = 0; i < meas.length; i++) {
-                    result[measSet].push(meas[i]);
+                    data.push(info_array.concat(meas[i]));
                 }
-            } else {
-                result[measSet] = meas;
             }
         }
-        return result;
+        return {headers: fullHeaders, data: data};
     },
 
     next: function() { return this.reader.next(); }
 };
 
-function renderSection(parser, section) {
-    var table = d3.select("#container").append("table");
+function renderMeasTable(measTable) {
+    var table = d3.select("#container").append("table")
     var thead = table.append("thead");
     var tbody = table.append("tbody");
 
-    var measSet = section.info["MEAS SET"];
-    var columns = parser.getHeaders(measSet);
+    table.classed("measure", true);
+
+    var columns = measTable.headers;
 
     thead.append("tr")
         .selectAll("th")
@@ -294,7 +309,7 @@ function renderSection(parser, section) {
 
     // create a row for each object in the data
     var rows = tbody.selectAll("tr")
-        .data(section.measurements)
+        .data(measTable.data)
         .enter()
         .append("tr");
 
