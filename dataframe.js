@@ -298,11 +298,9 @@ function renderMeasTable(measTable) {
 
     table.classed("measure", true);
 
-    var columns = measTable.headers;
-
     thead.append("tr")
         .selectAll("th")
-        .data(columns)
+        .data(measTable.headers)
         .enter()
         .append("th")
             .text(function(column) { return column; });
@@ -313,18 +311,10 @@ function renderMeasTable(measTable) {
         .enter()
         .append("tr");
 
-    var getNamedRow = function(row) {
-        var ls = [];
-        for (var i = 0; i < columns.length; i++) {
-            ls.push({column: columns[i], value: row[i]});
-        }
-        return ls;
-    }
-
     // create a cell in each row for each column
     var cells = rows.selectAll("td")
-        .data(getNamedRow)
+        .data(function(row) { return row; })
         .enter()
         .append("td")
-            .text(function(d) { return d.value; });
+            .text(function(d) { return d; });
 }
