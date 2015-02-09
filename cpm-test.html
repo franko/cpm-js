@@ -9,11 +9,55 @@
     <link rel="stylesheet" href="cpm-app.css">
 </head>
 <body>
-	<input type="file" id="files" name="file" />
-	<div id="file_content"></div>
+    <input type="file" id="files" name="file" multiple />
+    <div id="file_select"></div>
     <div id="container"></div>
     <script>
-    function onLoadFile(evt) {
+
+    var filenameToolFields = function(file, i) {
+        var nameRe = /(Q[A-Z0-9]+)_SERIE([0-9]+)/i;
+        var name = file.name;
+        var match = nameRe.exec(name);
+        if (match) {
+            return [name, match[1], match[2]];
+        } else {
+            return [name, "Tool " + String.fromCharCode(65 + i), "1"];
+        }
+    };
+
+    var renderFileListTable = function(files) {
+        var table = d3.select("#file_select").append("table")
+        var thead = table.append("thead");
+        var tbody = table.append("tbody");
+
+        thead.append("tr")
+            .selectAll("th")
+            .data(["Filename", "Tool", "Reprod"])
+            .enter()
+            .append("th")
+                .text(function(column) { return column; });
+
+        // create a row for each object in the data
+        var rows = tbody.selectAll("tr")
+            .data(files, function(d) { return d.name; })
+            .enter()
+            .append("tr");
+
+        // create a cell in each row for each column
+        var cells = rows.selectAll("td")
+            .data(filenameToolFields)
+            .enter()
+            .append("td")
+                .html(function(d, i) {
+                    if (i == 1) {
+                        return "<input type=\"text\" value=" + JSON.stringify(d) + ">";
+                    } else {
+                        return d;
+                    }
+                });
+    };
+
+    var onLoadFile = function(evt) {
         if (evt.target.readyState == FileReader.DONE) {
             var parser = new FXParser(evt.target.result);
             var dt = parser.readDateTime();
@@ -24,18 +68,20 @@
                 console.log(table);
             }
         }
-    }
+    };
 
-    function handleFileSelect(evt) {
+    var handleFileSelect = function(evt) {
         var files = evt.target.files; // FileList object
-
-        // Loop through the FileList
-        for (var i = 0, f; f = files[i]; i++) {
-            var reader = new FileReader();
-            reader.onloadend = onLoadFile;
-            reader.readAsText(f);
-        }
-    }
+        renderFileListTable(files);
+        var button = d3.select("body").append("button").text("Go");
+        button.on("click", function() {
+            for (var i = 0, f; f = files[i]; i++) {
+                var reader = new FileReader();
+                reader.onloadend = onLoadFile;
+                reader.readAsText(f);
+            }
+        });
+    };
 
     document.getElementById('files').addEventListener('change', handleFileSelect, false);
     </script>
