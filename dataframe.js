@@ -206,16 +206,27 @@ function csvReader(text) {
     }
     return {next: next};
 }
-var baseTagList = ['RECIPE', 'MEAS SET', 'LOT ID', 'SLOT', 'WAFER ID', 'SITE', 'RCP CNT'];
-var tabTagList = ['LOT ID', 'SLOT'];
-var extTagList = ['SITE', 'RCP CNT']
+
+var generalTags = ['RECIPE', 'MEAS SET', 'SITE'];
+var sectionTags = ['LOT ID', 'SLOT', 'WAFER ID', 'RCP CNT'];
+
+var collectTag = function(tag) {
+    return generalTags.indexOf(tag) >= 0 || sectionTags.indexOf(tag) >= 0;
+}
+
+var tagsDoMatch = function(tagList, a, b) {
+    for (var k = 0; k < tagList.length; k++) {
+        var key = tagList[k];
+        if (a[key] !== b[key]) {
+            return false;
+        }
+    }
+    return true;
+};
 
 FXParser = function(text, extended) {
     this.reader = csvReader(text);
-    this.headers = {};
-    this.sections = [];
-    this.tagList = baseTagList;
-    this.tabTagList = (extended ? tabTagList.concat(extTagList) : tabTagList);
+    this.tables = [];
 };
 
 FXParser.prototype = {
@@ -229,63 +240,51 @@ FXParser.prototype = {
         return "";
     },
 
-    readMeasurements: function(slot) {
+    readMeasurements: function(attrs) {
         var meas = [];
         for (var row = this.next(); row; row = this.next()) {
             if (!row[0]) break;
-            meas.push(row.slice(0, -3));
+            meas.push(attrs.concat(row.slice(0, -3)));
         }
         return meas;
     },
 
+    mergeMeasurements: function(info, meas, headers) {
+        for (var i = 0; i < this.tables.length; i++) {
+            var table = this.tables[i];
+            if (tagsDoMatch(generalTags, table.info, info)) {
+                for (var j = 0; j < meas.length; j++) {
+                    table.meas.push(meas[j]);
+                }
+                return;
+            }
+        }
+        var fullHeaders = sectionTags.concat(headers);
+        this.tables.push({info: info, meas: meas, headers: fullHeaders});
+    },
+
     readSection: function() {
         var info = {};
+        var headers;
         for (var row = this.next(); row; row = this.next()) {
             var key = row[0];
             if (key === "RESULT TYPE") {
-                var mHeaders = row.slice(0, -1);
-                mHeaders[0] = "Site #";
-                var film_stack = info["MEAS SET"];
-                this.headers[film_stack] = mHeaders;
-            } else if (this.tagList.indexOf(key) >= 0) {
+                headers = row.slice(0, -1);
+                headers[0] = "Site #";
+            } else if (collectTag(key)) {
                 info[key] = row[1];
             } else if (key == "Site #") {
-                var meas = this.readMeasurements(info['SLOT']);
-                return {info: info, measurements: meas};
+                var rowTags = sectionTags.map(function(d) { return info[d]; });
+                var meas = this.readMeasurements(rowTags);
+                this.mergeMeasurements(info, meas, headers);
+                return true;
             }
         }
+        return false;
     },
 
     readAll: function() {
-        while (true) {
-            var section = this.readSection();
-            if (!section) break;
-            this.sections.push(section);
-        }
-    },
-
-    getHeaders: function(measSet) {
-        return this.headers[measSet];
-    },
-
-    createMeasTable: function(measSet) {
-        var fullHeaders = this.tabTagList.slice();
-        var mHeaders = this.headers[measSet];
-        for (var i = 0; i < mHeaders.length; i++) {
-            fullHeaders.push(mHeaders[i]);
-        }
-        var data = [];
-        for (var i in this.sections) {
-            var section = this.sections[i];
-            var info = section.info, meas = section.measurements;
-            if (info["MEAS SET"] == measSet) {
-                var info_array = this.tabTagList.map(function(h) { return info[h]; });
-                for (var i = 0; i < meas.length; i++) {
-                    data.push(info_array.concat(meas[i]));
-                }
-            }
-        }
-        return {headers: fullHeaders, data: data};
+        while (this.readSection()) { }
     },
 
     next: function() { return this.reader.next(); }
@@ -307,7 +306,7 @@ function renderMeasTable(measTable) {
 
     // create a row for each object in the data
     var rows = tbody.selectAll("tr")
-        .data(measTable.data)
+        .data(measTable.meas)
         .enter()
         .append("tr");
 

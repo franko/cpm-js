@@ -62,10 +62,9 @@
             var parser = new FXParser(evt.target.result);
             var dt = parser.readDateTime();
             parser.readAll();
-            for (var measSet in parser.headers) {
-                var table = parser.createMeasTable(measSet);
-                renderMeasTable(table);
-                console.log(table);
+            for (var i in parser.tables) {
+                renderMeasTable(parser.tables[i]);
+                console.log(parser.tables[i]);
             }
         }
     };
