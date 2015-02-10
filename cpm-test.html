@@ -11,6 +11,7 @@
 <body>
     <input type="file" id="files" name="file" multiple />
     <div id="file_select"></div>
+    <div id="parameters"></div>
     <div id="container"></div>
     <script>
 
@@ -66,6 +67,7 @@
                 renderMeasTable(parser.tables[i]);
                 console.log(parser.tables[i]);
             }
+            renderParameters(parser.tables);
         }
     };
 

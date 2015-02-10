@@ -260,7 +260,8 @@ FXParser.prototype = {
             }
         }
         var fullHeaders = sectionTags.concat(headers);
-        this.tables.push({info: info, meas: meas, headers: fullHeaders});
+        var resultHeaders = headers.slice(1);
+        this.tables.push({info: info, meas: meas, headers: fullHeaders, resultHeaders: resultHeaders});
     },
 
     readSection: function() {
@@ -316,4 +317,27 @@ function renderMeasTable(measTable) {
         .enter()
         .append("td")
             .text(function(d) { return d; });
+}
+
+function renderParameters(tables) {
+    var div = d3.select("#parameters");
+    var sel = div.append("select");
+    var optGroups = sel.selectAll("optgroup").data(tables)
+        .enter().append("optgroup")
+        .attr("label", function(d) { return d.info["MEAS SET"]; });
+
+    optGroups.selectAll("option").data(function(table) { return table.resultHeaders; })
+        .enter().append("option").text(function(d) { return d; });
+
+    var t = div.append("table");
+    var thead = t.append("thead");
+    var tbody = t.append("tbody");
+
+    thead.append("tr").append("th").text("Selected Parameters");
+
+    var button = div.append("button").text("add")
+        .on("click", function() {
+            var tr = tbody.append("tr");
+            tr.append("td").text(sel.property("value"));
+        });
 }
