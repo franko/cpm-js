@@ -64,7 +64,7 @@
             var dt = parser.readDateTime();
             parser.readAll();
             for (var i in parser.tables) {
-                renderMeasTable(parser.tables[i]);
+                // renderMeasTable(parser.tables[i]);
                 console.log(parser.tables[i]);
             }
             renderParameters(parser.tables);
@@ -74,7 +74,7 @@
     var handleFileSelect = function(evt) {
         var files = evt.target.files; // FileList object
         renderFileListTable(files);
-        var button = d3.select("body").append("button").text("Go");
+        var button = d3.select("#file_select").append("button").text("Read Files");
         button.on("click", function() {
             for (var i = 0, f; f = files[i]; i++) {
                 var reader = new FileReader();
