@@ -62,11 +62,9 @@ var renderParameters = function(tables, onChoice) {
 }
 
 var mergeTables = function(tables, src) {
-    if (!tables) {
-        return src;
-    }
     for (var i = 0; i < src.length; i++) {
-        for (var j = 0; j < tables.length; j++) {
+        var j;
+        for (j = 0; j < tables.length; j++) {
             if (FXParser.tablesDoMatch(tables[j], src[i])) {
                 var data = tables[j].meas;
                 for (var k = 0; k < src[i].meas.length; k++) {
@@ -75,21 +73,24 @@ var mergeTables = function(tables, src) {
                 break;
             }
         }
+        if (j >= tables.length) {
+            tables.push(src[i]);
+        }
     }
-    return tables;
 };
 
 var onFileComplete = function(files) {
-    var tables;
+    var tables = [];
     var count = 0;
     var onLoadFile = function(evt) {
         if (evt.target.readyState == FileReader.DONE) {
             var parser = new FXParser(evt.target.result);
             var dt = parser.readDateTime();
             parser.readAll();
-            tables = mergeTables(tables, parser.tables);
+            mergeTables(tables, parser.tables);
             count++;
             if (count >= files.length) {
+                console.log(tables);
                 renderParameters(tables, function() { alert("Parameter choice done"); });
             }
         }
@@ -106,11 +107,15 @@ var filenameToolFields = function(file, i) {
     var nameRe = /(Q[A-Z0-9]+).*SERIE([0-9]+)/i;
     var name = file.name;
     var match = nameRe.exec(name);
+    var tool, rep;
     if (match) {
-        return [name, match[1], match[2]];
+        tool = match[1];
+        rep = match[2];
     } else {
-        return [name, "Tool " + String.fromCharCode(65 + i), "1"];
+        tool = "Tool " + String.fromCharCode(65 + i);
+        rep = "1";
     }
+    return [name, tool, rep];
 };
 
 var renderFileListTable = function(files, onComplete) {
@@ -127,9 +132,9 @@ var renderFileListTable = function(files, onComplete) {
 
     // create a row for each object in the data
     var rows = tbody.selectAll("tr")
-        .data(files, function(d) { return d.name; })
+        .data(files)
         .enter()
-        .append("tr");
+        .append("tr").attr("id", function(d, i) { return "row" + String(i); });
 
     // create a cell in each row for each column
     var cells = rows.selectAll("td")
@@ -147,8 +152,9 @@ var renderFileListTable = function(files, onComplete) {
     button.on("click", function() {
         var annFiles = [];
         for (var k = 0; k < files.length; k++) {
-            var tool = "Boo"; // TODO TODO: add the tool selection code here.
-            var reprod = 1;
+            var tr = document.getElementById("row" + String(k));
+            var tool = tr.childNodes[1].firstChild.value;
+            var reprod = tr.childNodes[2].firstChild.value;
             annFiles.push({handler: files[k], tool: tool, reprod: reprod});
         }
         onComplete(annFiles);
