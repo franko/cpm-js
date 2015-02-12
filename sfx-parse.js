@@ -44,6 +44,11 @@ FXParser = function(text, extended) {
     this.tables = [];
 };
 
+FXParser.tablesDoMatch = function(ta, tb) {
+    return tagsDoMatch(generalTags, ta.info, tb.info);
+};
+
+
 FXParser.prototype = {
     readDateTime: function() {
         for (var row = this.next(); row; row = this.next()) {
@@ -93,7 +98,8 @@ FXParser.prototype = {
         this.tables.push({info: info, meas: meas, headers: fullHeaders, resultHeaders: resultHeaders});
     },
 
-    readSection: function(info) {
+    readSection: function() {
+        var info = {};
         var headers;
         for (var row = this.next(); row; row = this.next()) {
             var key = row[0];
@@ -112,8 +118,8 @@ FXParser.prototype = {
         return false;
     },
 
-    readAll: function(info) {
-        while (this.readSection(info)) { }
+    readAll: function() {
+        while (this.readSection()) { }
     },
 
     next: function() { return this.reader.next(); }
