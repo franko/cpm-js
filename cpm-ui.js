@@ -1,4 +1,56 @@
 
+var tablesExtractOnParameters = function(tables, parameterIndex) {
+    var iTable = parameterIndex[0], iCol = parameterIndex[1];
+    var table = tables[iTable];
+    var data = [];
+    var n = table.meas.length;
+    var fields = ["Tool", "Wafer", "Reprod", "Site", "Repeat"];
+    fields.push(table.resultHeaders[iCol]);
+    var colIndex = fields.map(function(d) { return table.headers.indexOf(d); });
+    for (var i = 0; i < n; i++) {
+        for (var k = 0; k < colIndex.length; k++) {
+            data.push(table.meas[i][colIndex[k]]);
+        }
+    }
+    return DataFrame.create(n, colIndex.length, data);
+};
+
+var renderMeasTable = function(measTable) {
+    var table = d3.select("#container").append("table")
+    var thead = table.append("thead");
+    var tbody = table.append("tbody");
+
+    table.classed("measure", true);
+
+    thead.append("tr")
+        .selectAll("th")
+        .data(measTable.headers)
+        .enter()
+        .append("th")
+            .text(function(column) { return column; });
+
+    // create a row for each object in the data
+    var rows = tbody.selectAll("tr")
+        .data(measTable.meas)
+        .enter()
+        .append("tr");
+
+    // create a cell in each row for each column
+    var cells = rows.selectAll("td")
+        .data(function(row) { return row; })
+        .enter()
+        .append("td")
+            .text(function(d) { return d; });
+};
+
+var onParameterChoice = function(tables, selParams) {
+    for (var i = 0, t; t = tables[i]; i++) {
+        renderMeasTable(t);
+    }
+    var df = tablesExtractOnParameters(tables, selParams[0]);
+    console.log(df);
+};
+
 var renderParameters = function(tables, onChoice) {
     var div = d3.select("#parameters");
     var sel = div.append("select");
@@ -92,8 +144,7 @@ var onFileComplete = function(files) {
                     mergeTables(tables, parser.tables);
                     count++;
                     if (count >= files.length) {
-                        console.log(tables);
-                        renderParameters(tables, function() { alert("Parameter choice done"); });
+                        renderParameters(tables, onParameterChoice);
                     }
                 }
             };
