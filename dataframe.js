@@ -11,17 +11,30 @@
 
 DataFrame = function() { };
 
-DataFrame.create = function(nrows, ncols, data) {
+DataFrame.create = function(nrows, headers, data) {
     var T = new DataFrame();
-    T.setDimensions(nrows, ncols);
+    T.setDimensions(nrows, headers);
     T.setData(data);
     return T;
 };
 
 DataFrame.prototype = {
-    setDimensions: function(nrows, ncols) {
+    setDimensions: function(nrows, headers) {
+        this.headers = headers;
         this.nrows = nrows;
-        this.ncols = ncols;
+        this.ncols = headers.length;
+    },
+
+    findLevels: function(name) {
+        var j = this.headers.indexOf(name);
+        var levels = [];
+        for (var i = 0; i < this.nrows; i++) {
+            var y = this.data[i*this.ncols + j];
+            if (levels.indexOf(y) < 0) {
+                levels.push(y);
+            }
+        }
+        return levels;
     },
 
     setData: function(data) {
@@ -143,7 +156,9 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
         }
         stat.push(sumsq / (n - ncomputed));
     }
-    return DataFrame.create(groups.length, condition.length + 1, stat);
+    var statHeaders = groups[0].map(function(d) { return d.value; });
+    statHeaders.push("Variance");
+    return DataFrame.create(groups.length, statHeaders, stat);
 };
 
 var cpm_test = function() {
