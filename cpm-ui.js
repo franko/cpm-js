@@ -82,24 +82,25 @@ var mergeTables = function(tables, src) {
 var onFileComplete = function(files) {
     var tables = [];
     var count = 0;
-    var onLoadFile = function(evt) {
-        if (evt.target.readyState == FileReader.DONE) {
-            var parser = new FXParser(evt.target.result);
-            var dt = parser.readDateTime();
-            parser.readAll();
-            mergeTables(tables, parser.tables);
-            count++;
-            if (count >= files.length) {
-                console.log(tables);
-                renderParameters(tables, function() { alert("Parameter choice done"); });
-            }
-        }
-    };
     for (var i = 0; i < files.length; i++) {
-        var file = files[i];
+        var onLoadFileIndexed = function(index) {
+            return function(evt) {
+                if (evt.target.readyState == FileReader.DONE) {
+                    var parser = new FXParser(evt.target.result, {groupRepeat: 5});
+                    var dt = parser.readDateTime();
+                    parser.readAll({tool: files[index].tool, reprod: files[index].reprod});
+                    mergeTables(tables, parser.tables);
+                    count++;
+                    if (count >= files.length) {
+                        console.log(tables);
+                        renderParameters(tables, function() { alert("Parameter choice done"); });
+                    }
+                }
+            };
+        };
         var reader = new FileReader();
-        reader.onloadend = onLoadFile;
-        reader.readAsText(file.handler);
+        reader.onloadend = onLoadFileIndexed(i);
+        reader.readAsText(files[i].handler);
     }
 };
 
@@ -107,15 +108,11 @@ var filenameToolFields = function(file, i) {
     var nameRe = /(Q[A-Z0-9]+).*SERIE([0-9]+)/i;
     var name = file.name;
     var match = nameRe.exec(name);
-    var tool, rep;
     if (match) {
-        tool = match[1];
-        rep = match[2];
+        return [name, match[1], match[2]];
     } else {
-        tool = "Tool " + String.fromCharCode(65 + i);
-        rep = "1";
+        return [name, "Tool " + String.fromCharCode(65 + i), "1"];
     }
-    return [name, tool, rep];
 };
 
 var renderFileListTable = function(files, onComplete) {
@@ -154,7 +151,7 @@ var renderFileListTable = function(files, onComplete) {
         for (var k = 0; k < files.length; k++) {
             var tr = document.getElementById("row" + String(k));
             var tool = tr.childNodes[1].firstChild.value;
-            var reprod = tr.childNodes[2].firstChild.value;
+            var reprod = Number(tr.childNodes[2].firstChild.value);
             annFiles.push({handler: files[k], tool: tool, reprod: reprod});
         }
         onComplete(annFiles);
