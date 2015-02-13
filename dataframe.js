@@ -154,46 +154,51 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
                 n += 1;
             }
         }
-        stat.push(sumsq / (n - ncomputed));
+        stat.push(Math.sqrt(sumsq / (n - ncomputed)));
     }
     var statHeaders = groups[0].map(function(d) { return d.value; });
     statHeaders.push("Variance");
     return DataFrame.create(groups.length, statHeaders, stat);
 };
 
-var cpm_test = function() {
-    var sige = DataFrame.create(1020, 9, cpm_sige_data);
-    var sige_th = DataFrameView.create(sige, 1, 8, sige.nrows, 1);
-    for (var i = 1; i <= 10; i++) {
-        console.log("sige_th:", sige_th.e(i, 1));
-    }
+function computeCPM(data, measuredParameter) {
+    var measuredParamIndex = data.headers.indexOf(measuredParameter) + 1;
+    var siteIndex = data.headers.indexOf("Site") + 1;
+    var toolIndex = data.headers.indexOf("Tool") + 1;
+
+    var siteLevels = data.findLevels("Site");
+    var toolLevels = data.findLevels("Tool");
+
+    var measVector = DataFrameView.create(data, 1, measuredParamIndex, data.nrows, 1);
 
     var cpm_factors = [
         []
     ];
 
-    for (var site = 2; site <= 17; site++) {
-        cpm_factors.push([{column: 5, value: site}]);
+    // Add a factor for each level of Site effect. First site is skipped.
+    for (var k = 1, level; level = siteLevels[k]; k++) {
+        cpm_factors.push([{column: siteIndex, value: level}]);
     }
 
-    var tools = ['QFX1001', 'QFX1002', 'QFX1003', 'QFX1006']
-    for (var k = 1; k < tools.length; k++) {
-        cpm_factors.push([{column: 4, value: tools[k]}]);
+    // Add a factor for each level of Tool effect. First tool is skipped.
+    for (var k = 1, level; level = toolLevels[k]; k++) {
+        cpm_factors.push([{column: toolIndex, value: level}]);
     }
 
     var tool_factors = [];
-    for (var k = 0; k < tools.length; k++) {
-        tool_factors.push([{column: 4, value: tools[k]}]);
+    for (var k = 0, level; level = toolLevels[k]; k++) {
+        tool_factors.push([{column: toolIndex, value: level}]);
     }
 
-    var K = buildFactorMatrix(sige, cpm_factors);
-    var S = buildFactorSumVector(sige, cpm_factors, sige_th);
+    var K = buildFactorMatrix(data, cpm_factors);
+    var S = buildFactorSumVector(data, cpm_factors, measVector);
     var est = K.inverse().multiply(S); // Estimates.
-    var Yest = evalExpected(cpm_factors, est, sige);
+    var Yest = evalExpected(cpm_factors, est, data);
 
     console.log(est.inspect());
 
-    var stat = residualMeanSquares(sige, tool_factors, cpm_factors, est, sige_th, 17);
+    var nComputeAverages = siteLevels.length;
+    var stat = residualMeanSquares(data, tool_factors, cpm_factors, est, measVector, nComputeAverages);
     for (var i = 1; i <= stat.nrows; i++) {
         console.log(stat.e(i, 1), stat.e(i, 2))
     }

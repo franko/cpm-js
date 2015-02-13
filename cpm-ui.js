@@ -12,7 +12,8 @@ var tablesExtractOnParameters = function(tables, parameterIndex) {
             data.push(table.meas[i][colIndex[k]]);
         }
     }
-    return DataFrame.create(n, colIndex.length, data);
+    var cpmData = DataFrame.create(n, fields, data);
+    computeCPM(cpmData, table.resultHeaders[iCol]);
 };
 
 var renderMeasTable = function(measTable) {
