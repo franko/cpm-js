@@ -36,6 +36,27 @@ DataFrame.prototype.findLevels = function(name) {
     return levels;
 };
 
+var arrayAreEqual = function(a, b) {
+    for (var i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            return false;
+        }
+    }
+    return (b.length === a.length);
+};
+
+DataFrame.prototype.findCoupledLevels = function(names) {
+    var js = names.map(function(name) { return this.colIndexOf(name); }, this);
+    var levels = [];
+    for (var i = 1; i <= this.rows(); i++) {
+        var ys = js.map(function(j) { return this.e(i, j); }, this);
+        if (!levels.some(function(zs) { return arrayAreEqual(ys, zs); })) {
+            levels.push(ys);
+        }
+    }
+    return levels;
+};
+
 DataFrame.prototype.setElements = function(data) {
     this.elements = data;
 };
@@ -50,6 +71,16 @@ var matchFactors = function(t, i, values) {
         }
     }
     return (match == kno);
+};
+
+DataFrame.prototype.filter = function(condition) {
+    var data = [];
+    for (var i = 1; i < this.rows(); i++) {
+        if (matchFactors(this, i, condition)) {
+            data.push(this.elements[i-1]);
+        }
+    }
+    return DataFrame.create(data, this.headers);
 };
 
 var sumOccurrences = function(t, values, y) {
@@ -130,6 +161,32 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
     return DataFrame.create(stat, statHeaders);
 };
 
+var plotByReprod = function(svg, data, yIndex) {
+    var width = svg.attr("width"), height = svg.attr("height");
+    var factors = ["Reprod", "Site"];
+    var xLevels = data.findCoupledLevels(factors);
+    var toCondition = function(y, i) {
+        return {column: data.colIndexOf(factors[i]), value: y};
+    };
+    var xLevelConditions = xLevels.map(function(ys) { return ys.map(toCondition); });
+    var values = data.elements.map(function(row, i) {
+        for (var k = 0; k < xLevels.length; k++) {
+            if (matchFactors(data, i+1, xLevelConditions[k])) {
+                return [k, row[yIndex - 1]];
+            }
+        }
+    });
+    var ySelector = function(d) { return d[yIndex - 1]; };
+    var ymin = d3.min(data.elements, ySelector), ymax = d3.max(data.elements, ySelector);
+    var yScale = d3.scale.linear().domain([ymin, ymax]).range([height, 0]);
+    var xScale = d3.scale.ordinal().domain(xLevels.map(function(d, i) { return i; })).rangeBands([0, width]);
+    svg.selectAll("circle").data(values)
+        .enter().append("circle")
+        .attr("cx", function(p) { return xScale(p[0]); })
+        .attr("cy", function(p) { return yScale(p[1]); })
+        .attr("r", 5).style("fill", "steelblue");
+};
+
 function computeCPM(data, measuredParameter) {
     var measuredParamIndex = data.colIndexOf(measuredParameter);
     var siteIndex = data.colIndexOf("Site");
@@ -169,4 +226,7 @@ function computeCPM(data, measuredParameter) {
     var nComputeAverages = siteLevels.length;
     var stat = residualMeanSquares(data, tool_factors, cpm_factors, est, measVector, nComputeAverages);
     console.log(stat.inspect());
+
+    dataTool0 = data.filter(tool_factors[0]);
+    plotByReprod(d3.select("#toolrep"), dataTool0, measuredParamIndex);
 };
