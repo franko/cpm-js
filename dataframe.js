@@ -40,14 +40,6 @@ DataFrame.prototype.setElements = function(data) {
     this.elements = data;
 };
 
-DataFrame.prototype.col = function(j) {
-    var c = [];
-    for (var i = 0; i < this.rows(); i++) {
-        c[i] = this.e(i+1, j);
-    }
-    return {e: function(i) { return c[i-1]; }};
-};
-
 var matchFactors = function(t, i, values) {
     var match = 0;
     var kno = values.length;
