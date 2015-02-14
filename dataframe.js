@@ -24,6 +24,7 @@ DataFrame.prototype = {
     rows: matrixProto.rows,
     cols: matrixProto.cols,
     e: matrixProto.e,
+    inspect: matrixProto.inspect,
 
     colIndexOf: function(name) {
         return this.headers.indexOf(name) + 1;
@@ -51,17 +52,6 @@ DataFrame.prototype = {
             c[i] = this.e(i+1, j);
         }
         return {e: function(i) { return c[i-1]; }};
-    },
-
-    inspect: function() {
-        var lines = [], row = [];
-        for (var i = 1; i <= this.rows(); i++) {
-            for (var j = 1; j <= this.cols(); j++) {
-                row[j-1] = this.e(i, j);
-            }
-            lines.push("[" + row.join(", ") + "]");
-        }
-        return lines.join("\n");
     },
 };
 
