@@ -18,41 +18,34 @@ DataFrame.create = function(data, headers) {
     return obj;
 };
 
-var matrixProto = Sylvester.Matrix.prototype;
+DataFrame.prototype = new Sylvester.Matrix;
 
-DataFrame.prototype = {
-    rows: matrixProto.rows,
-    cols: matrixProto.cols,
-    e: matrixProto.e,
-    inspect: matrixProto.inspect,
+DataFrame.prototype.colIndexOf = function(name) {
+    return this.headers.indexOf(name) + 1;
+};
 
-    colIndexOf: function(name) {
-        return this.headers.indexOf(name) + 1;
-    },
-
-    findLevels: function(name) {
-        var j = this.colIndexOf(name);
-        var levels = [];
-        for (var i = 1; i <= this.rows(); i++) {
-            var y = this.e(i, j);
-            if (levels.indexOf(y) < 0) {
-                levels.push(y);
-            }
+DataFrame.prototype.findLevels = function(name) {
+    var j = this.colIndexOf(name);
+    var levels = [];
+    for (var i = 1; i <= this.rows(); i++) {
+        var y = this.e(i, j);
+        if (levels.indexOf(y) < 0) {
+            levels.push(y);
         }
-        return levels;
-    },
+    }
+    return levels;
+};
 
-    setElements: function(data) {
-        this.elements = data;
-    },
+DataFrame.prototype.setElements = function(data) {
+    this.elements = data;
+};
 
-    col: function(j) {
-        var c = [];
-        for (var i = 0; i < this.rows(); i++) {
-            c[i] = this.e(i+1, j);
-        }
-        return {e: function(i) { return c[i-1]; }};
-    },
+DataFrame.prototype.col = function(j) {
+    var c = [];
+    for (var i = 0; i < this.rows(); i++) {
+        c[i] = this.e(i+1, j);
+    }
+    return {e: function(i) { return c[i-1]; }};
 };
 
 var matchFactors = function(t, i, values) {
