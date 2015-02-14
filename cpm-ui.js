@@ -8,11 +8,13 @@ var tablesExtractOnParameters = function(tables, parameterIndex) {
     fields.push(table.resultHeaders[iCol]);
     var colIndex = fields.map(function(d) { return table.headers.indexOf(d); });
     for (var i = 0; i < n; i++) {
+        var row = [];
         for (var k = 0; k < colIndex.length; k++) {
-            data.push(table.meas[i][colIndex[k]]);
+            row[k] = table.meas[i][colIndex[k]];
         }
+        data[i] = row;
     }
-    var cpmData = DataFrame.create(n, fields, data);
+    var cpmData = DataFrame.create(data, fields);
     computeCPM(cpmData, table.resultHeaders[iCol]);
 };
 

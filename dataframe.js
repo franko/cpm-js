@@ -11,25 +11,29 @@
 
 DataFrame = function() { };
 
-DataFrame.create = function(nrows, headers, data) {
-    var T = new DataFrame();
-    T.setDimensions(nrows, headers);
-    T.setData(data);
-    return T;
+DataFrame.create = function(data, headers) {
+    var obj = new DataFrame();
+    obj.setElements(data);
+    obj.headers = headers.slice();
+    return obj;
 };
 
+var matrixProto = Sylvester.Matrix.prototype;
+
 DataFrame.prototype = {
-    setDimensions: function(nrows, headers) {
-        this.headers = headers;
-        this.nrows = nrows;
-        this.ncols = headers.length;
+    rows: matrixProto.rows,
+    cols: matrixProto.cols,
+    e: matrixProto.e,
+
+    colIndexOf: function(name) {
+        return this.headers.indexOf(name) + 1;
     },
 
     findLevels: function(name) {
-        var j = this.headers.indexOf(name);
+        var j = this.colIndexOf(name);
         var levels = [];
-        for (var i = 0; i < this.nrows; i++) {
-            var y = this.data[i*this.ncols + j];
+        for (var i = 1; i <= this.rows(); i++) {
+            var y = this.e(i, j);
             if (levels.indexOf(y) < 0) {
                 levels.push(y);
             }
@@ -37,39 +41,28 @@ DataFrame.prototype = {
         return levels;
     },
 
-    setData: function(data) {
-        this.data = data;
+    setElements: function(data) {
+        this.elements = data;
     },
 
-    indexOf: function(i, j) {
-        return (i-1)*this.ncols + (j-1);
+    col: function(j) {
+        var c = [];
+        for (var i = 0; i < this.rows(); i++) {
+            c[i] = this.e(i+1, j);
+        }
+        return {e: function(i) { return c[i-1]; }};
     },
 
-    e: function(i, j) {
-        return this.data[(i-1)*this.ncols + (j-1)];
-    }
-};
-
-DataFrameView = function() { };
-
-DataFrameView.create = function(Tsrc, i0, j0, nrows, ncols) {
-    var T = new DataFrameView();
-    T.setView(Tsrc, i0, j0, nrows, ncols);
-    return T;
-};
-
-DataFrameView.prototype = {
-    setView: function(Tsrc, i0, j0, nrows, ncols) {
-        this.data = Tsrc.data;
-        this.start = Tsrc.indexOf(i0, j0);
-        this.stride = Tsrc.ncols;
-        this.nrows = nrows;
-        this.ncols = ncols;
+    inspect: function() {
+        var lines = [], row = [];
+        for (var i = 1; i <= this.rows(); i++) {
+            for (var j = 1; j <= this.cols(); j++) {
+                row[j-1] = this.e(i, j);
+            }
+            lines.push("[" + row.join(", ") + "]");
+        }
+        return lines.join("\n");
     },
-
-    e: function(i, j) {
-        return this.data[this.start + (i-1)*this.stride + (j-1)];
-    }
 };
 
 var matchFactors = function(t, i, values) {
@@ -86,8 +79,8 @@ var matchFactors = function(t, i, values) {
 
 var sumOccurrences = function(t, values, y) {
     var sum = 0;
-    for (var i = 1; i <= t.nrows; i++) {
-        var yi = y ? y.e(i, 1) : 1;
+    for (var i = 1; i <= t.rows(); i++) {
+        var yi = y ? y.e(i) : 1;
         sum += matchFactors(t, i, values) ? yi : 0;
     }
     return sum;
@@ -132,7 +125,7 @@ var evalRowExpected = function(factors, estimates, tab, i) {
 
 var evalExpected = function(factors, estimates, tab) {
     var Yd = [];
-    for (var i = 1; i <= tab.nrows; i++) {
+    for (var i = 1; i <= tab.rows(); i++) {
         Yd.push(evalRowExpected(factors, estimates, tab, i));
     }
     return Sylvester.Vector.create(Yd);
@@ -142,34 +135,35 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
     var stat = [];
     for (var p = 0; p < groups.length; p++) {
         var condition = groups[p];
+        var row = [];
         for (var k = 0; k < condition.length; k++) {
-            stat.push(condition[k].value);
+            row[k] = condition[k].value;
         }
         var sumsq = 0, n = 0;
-        for (var i = 1; i <= tab.nrows; i++) {
+        for (var i = 1; i <= tab.rows(); i++) {
             if (matchFactors(tab, i, condition)) {
                 var yEst = evalRowExpected(factors, estimates, tab, i);
-                var yObs = y.e(i, 1);
-                sumsq += Math.pow(yEst - yObs, 2);
+                sumsq += Math.pow(yEst - y.e(i), 2);
                 n += 1;
             }
         }
-        stat.push(Math.sqrt(sumsq / (n - ncomputed)));
+        row.push(Math.sqrt(sumsq / (n - ncomputed)));
+        stat.push(row);
     }
     var statHeaders = groups[0].map(function(d) { return d.value; });
     statHeaders.push("Variance");
-    return DataFrame.create(groups.length, statHeaders, stat);
+    return DataFrame.create(stat, statHeaders);
 };
 
 function computeCPM(data, measuredParameter) {
-    var measuredParamIndex = data.headers.indexOf(measuredParameter) + 1;
-    var siteIndex = data.headers.indexOf("Site") + 1;
-    var toolIndex = data.headers.indexOf("Tool") + 1;
+    var measuredParamIndex = data.colIndexOf(measuredParameter);
+    var siteIndex = data.colIndexOf("Site");
+    var toolIndex = data.colIndexOf("Tool");
 
     var siteLevels = data.findLevels("Site");
     var toolLevels = data.findLevels("Tool");
 
-    var measVector = DataFrameView.create(data, 1, measuredParamIndex, data.nrows, 1);
+    var measVector = data.col(measuredParamIndex);
 
     var cpm_factors = [
         []
@@ -199,7 +193,5 @@ function computeCPM(data, measuredParameter) {
 
     var nComputeAverages = siteLevels.length;
     var stat = residualMeanSquares(data, tool_factors, cpm_factors, est, measVector, nComputeAverages);
-    for (var i = 1; i <= stat.nrows; i++) {
-        console.log(stat.e(i, 1), stat.e(i, 2))
-    }
+    console.log(stat.inspect());
 };
