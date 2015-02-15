@@ -162,7 +162,10 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
 };
 
 var plotByReprod = function(svg, data, yIndex) {
-    var width = svg.attr("width"), height = svg.attr("height");
+    var svgWidth = svg.attr("width"), svgHeight = svg.attr("height");
+    var margin = {top: 20, right: 30, bottom: 30, left: 40};
+    var width = svgWidth - margin.left - margin.right;
+    var height = svgHeight - margin.top - margin.bottom;
     var factors = ["Reprod", "Site"];
     var xLevels = data.findCoupledLevels(factors);
     var toCondition = function(y, i) {
@@ -178,13 +181,36 @@ var plotByReprod = function(svg, data, yIndex) {
     });
     var ySelector = function(d) { return d[yIndex - 1]; };
     var ymin = d3.min(data.elements, ySelector), ymax = d3.max(data.elements, ySelector);
-    var yScale = d3.scale.linear().domain([ymin, ymax]).range([height, 0]);
+    var yScale = d3.scale.linear().domain([ymin, ymax]).range([height, 0]).nice();
     var xScale = d3.scale.ordinal().domain(xLevels.map(function(d, i) { return i; })).rangeBands([0, width]);
-    svg.selectAll("circle").data(values)
+
+    var xAxis = d3.svg.axis()
+        .scale(xScale)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+        .scale(yScale)
+        .orient("left");
+
+    var chart = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var palette = d3.scale.category10();
+
+    chart.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    chart.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+    chart.selectAll("circle").data(values)
         .enter().append("circle")
         .attr("cx", function(p) { return xScale(p[0]); })
         .attr("cy", function(p) { return yScale(p[1]); })
-        .attr("r", 5).style("fill", "steelblue");
+        .attr("r", 5).style("fill", function(p) { return palette(Math.floor(p[0]/17)); });
 };
 
 function computeCPM(data, measuredParameter) {
