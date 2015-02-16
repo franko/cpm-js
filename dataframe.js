@@ -146,18 +146,22 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
             row[k] = condition[k].value;
         }
         var sumsq = 0, n = 0;
+        var sum = 0;
         for (var i = 1; i <= tab.rows(); i++) {
             if (matchFactors(tab, i, condition)) {
                 var yEst = evalRowExpected(factors, estimates, tab, i);
+                sum += y.e(i);
                 sumsq += Math.pow(yEst - y.e(i), 2);
                 n += 1;
             }
         }
-        row.push(Math.sqrt(sumsq / (n - ncomputed)));
+        row.push(sum / n);
+        row.push(Math.sqrt(sumsq / n));
         stat.push(row);
     }
     var statHeaders = groups[0].map(function(d) { return d.value; });
-    statHeaders.push("Variance");
+    statHeaders.push("Mean");
+    statHeaders.push("StdDev");
     return DataFrame.create(stat, statHeaders);
 };
 
@@ -213,6 +217,52 @@ var plotByReprod = function(svg, data, yIndex) {
         .attr("r", 5).style("fill", function(p) { return palette(Math.floor(p[0]/17)); });
 };
 
+var gaussianDens = function(u, s, x) {
+    return 1/(Math.sqrt(2*Math.PI) * s) * Math.exp(-Math.pow((x - u)/s, 2)/2);
+}
+
+var plotToolDistrib = function(svg, stat) {
+    var svgWidth = svg.attr("width"), svgHeight = svg.attr("height");
+    var margin = {top: 20, right: 30, bottom: 30, left: 40};
+    var width = svgWidth - margin.left - margin.right;
+    var height = svgHeight - margin.top - margin.bottom;
+
+    var meanIndex = stat.colIndexOf("Mean"), stdIndex = stat.colIndexOf("StdDev");
+    var xmin = d3.min(stat.elements, function(row) { return row[meanIndex-1] - 6*row[stdIndex-1]; });
+    var xmax = d3.max(stat.elements, function(row) { return row[meanIndex-1] + 6*row[stdIndex-1]; });
+    var xScale = d3.scale.linear().domain([xmin, xmax]).range([0, width]);
+
+    var ymax = d3.max(stat.elements, function(row) { return gaussianDens(0, row[stdIndex-1], 0); });
+    var yScale = d3.scale.linear().domain([0, ymax]).range([height, 0]).nice();
+
+    var sampledYs = stat.elements.map(function(row) {
+        var ls = [];
+        var u = row[meanIndex-1], s = row[stdIndex-1];
+        for (var i = 0; i <= 256; i++) {
+            var x = xmin + (xmax - xmin) * i / 256;
+            ls.push([x, gaussianDens(u, s, x)]);
+        }
+        return ls;
+    });
+
+    var lineFunction = d3.svg.line()
+        .x(function (d) { return xScale(d[0]); })
+        .y(function (d) { return yScale(d[1]); })
+        .interpolate("basis");
+
+    var palette = d3.scale.category10();
+
+    var chart = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    chart.selectAll("path").data(sampledYs)
+        .enter().append("path")
+        .attr("d", lineFunction)
+        .attr("stroke", function(ys, i) { return palette(i); })
+        .attr("stroke-width", 2)
+        .attr("fill", "none");
+}
+
 function computeCPM(data, measuredParameter) {
     var measuredParamIndex = data.colIndexOf(measuredParameter);
     var siteIndex = data.colIndexOf("Site");
@@ -255,4 +305,6 @@ function computeCPM(data, measuredParameter) {
 
     dataTool0 = data.filter(tool_factors[0]);
     plotByReprod(d3.select("#toolrep"), dataTool0, measuredParamIndex);
+
+    plotToolDistrib(d3.select("#gaussplot"), stat);
 };

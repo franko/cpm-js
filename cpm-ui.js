@@ -50,8 +50,7 @@ var onParameterChoice = function(tables, selParams) {
     for (var i = 0, t; t = tables[i]; i++) {
         renderMeasTable(t);
     }
-    var df = tablesExtractOnParameters(tables, selParams[0]);
-    console.log(df);
+    tablesExtractOnParameters(tables, selParams[0]);
 };
 
 var renderParameters = function(tables, onChoice) {
