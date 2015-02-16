@@ -196,8 +196,8 @@ var plotByReprod = function(svg, data, yIndex) {
         .scale(yScale)
         .orient("left");
 
-    var chart = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var chartTranslate = "translate(" + margin.left + "," + margin.top + ")";
+    var chart = svg.append("g").attr("transform", chartTranslate);
 
     var palette = d3.scale.category10();
 
@@ -210,7 +210,9 @@ var plotByReprod = function(svg, data, yIndex) {
         .attr("class", "y axis")
         .call(yAxis);
 
-    chart.selectAll("circle").data(values)
+    var g = svg.append("g").attr("transform", chartTranslate);
+
+    g.selectAll("circle").data(values)
         .enter().append("circle")
         .attr("cx", function(p) { return xScale(p[0]); })
         .attr("cy", function(p) { return yScale(p[1]); })
