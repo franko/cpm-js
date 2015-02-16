@@ -240,8 +240,9 @@ var plotToolDistrib = function(svg, stat) {
     var sampledYs = stat.elements.map(function(row) {
         var ls = [];
         var u = row[meanIndex-1], s = row[stdIndex-1];
-        for (var i = 0; i <= 256; i++) {
-            var x = xmin + (xmax - xmin) * i / 256;
+        var nSamples = 32;
+        for (var i = 0; i <= nSamples; i++) {
+            var x = xmin + (xmax - xmin) * i / nSamples;
             ls.push([x, gaussianDens(u, s, x)]);
         }
         return ls;
