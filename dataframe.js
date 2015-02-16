@@ -255,7 +255,27 @@ var plotToolDistrib = function(svg, stat) {
     var chart = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    chart.selectAll("path").data(sampledYs)
+    var xAxis = d3.svg.axis()
+        .scale(xScale)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+        .scale(yScale)
+        .orient("left");
+
+    chart.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    chart.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+    var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    g.selectAll("path").data(sampledYs)
         .enter().append("path")
         .attr("d", lineFunction)
         .attr("stroke", function(ys, i) { return palette(i); })
