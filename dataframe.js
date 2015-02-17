@@ -318,6 +318,67 @@ var plotToolDistrib = function(svg, stat) {
     }));
 }
 
+var erf = function(x) {
+    // constants
+    var a1 =  0.254829592;
+    var a2 = -0.284496736;
+    var a3 =  1.421413741;
+    var a4 = -1.453152027;
+    var a5 =  1.061405429;
+    var p  =  0.3275911;
+
+    // Save the sign of x
+    var sign = 1;
+    if (x < 0) {
+        sign = -1;
+    }
+    x = Math.abs(x);
+
+    // A&S formula 7.1.26
+    var t = 1.0/(1.0 + p*x);
+    var y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
+
+    return sign*y;
+};
+
+var mixtureGaussianQuantiles = function(stat, prob, x0) {
+    var meanIndex = stat.colIndexOf("Mean"), stdIndex = stat.colIndexOf("StdDev");
+    var n = stat.rows();
+    var us = stat.elements.map(function(row) { return row[meanIndex-1]; });
+    var ss = stat.elements.map(function(row) { return row[stdIndex-1]; });
+
+    var avg = 0;
+    for (var i = 0; i < n; i++) {
+        avg += us[i];
+    }
+    avg = avg / n;
+    var sqrt2 = Math.sqrt(2);
+
+    var f = function(x) {
+        var p = 0;
+        for (var i = 0; i < n; i++) {
+            p += 0.5 * (1 + erf((x-us[i])/(ss[i]*sqrt2)));
+        }
+        return p / n - prob;
+    };
+    var derf = function(x) {
+        var p = 0;
+        for (var i = 0; i < n; i++) {
+            p += gaussianDens(us[i], ss[i], x);
+        }
+        return p / n;
+    };
+    var x = x0;
+    for (var i = 0; i < 20; i++) {
+        var xp = x;
+        var x = xp - f(xp) / derf(xp);
+        if (Math.abs(x-xp) < Math.abs(avg) * 1e-5) {
+            break;
+        }
+    }
+    return x;
+};
+
 var cpmStdDevEstimateBiasCorrect = function(stat, factors) {
     var degOfFreedom = factors.length;
     var stdIndex = stat.colIndexOf("StdDev"), countIndex = stat.colIndexOf("Count");
@@ -375,4 +436,13 @@ function computeCPM(data, measuredParameter) {
     plotByReprod(d3.select("#toolrep"), dataTool0, measuredParamIndex);
 
     plotToolDistrib(d3.select("#gaussplot"), stat);
+
+    var xL0 = d3.min(stat.elements, function(row) { return row[stat.colIndexOf("Mean")-1] - 3*row[stat.colIndexOf("StdDev")-1]; });
+    var xR0 = d3.max(stat.elements, function(row) { return row[stat.colIndexOf("Mean")-1] + 3*row[stat.colIndexOf("StdDev")-1]; });
+    var xL = mixtureGaussianQuantiles(stat, 0.0013498980316301, xL0);
+    var xR = mixtureGaussianQuantiles(stat, 1 - 0.0013498980316301, xR0);
+    console.log(xL0, xR0);
+    console.log(xL, xR);
+    var deltaSpec = 60;
+    console.log("CPM:", deltaSpec / (xR - xL));
 };
