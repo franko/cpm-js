@@ -137,7 +137,7 @@ var evalExpected = function(factors, estimates, tab) {
     return Sylvester.Vector.create(Yd);
 };
 
-var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed) {
+var residualMeanSquares = function(tab, groups, factors, estimates, y) {
     var stat = [];
     for (var p = 0; p < groups.length; p++) {
         var condition = groups[p];
@@ -157,11 +157,13 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y, ncomputed
         }
         row.push(sum / n);
         row.push(Math.sqrt(sumsq / n));
+        row.push(n);
         stat.push(row);
     }
-    var statHeaders = groups[0].map(function(d) { return d.value; });
+    var statHeaders = groups[0].map(function(d) { return tab.headers[d.column - 1]; });
     statHeaders.push("Mean");
     statHeaders.push("StdDev");
+    statHeaders.push("Count");
     return DataFrame.create(stat, statHeaders);
 };
 
@@ -286,6 +288,19 @@ var plotToolDistrib = function(svg, stat) {
         .attr("fill", "none");
 }
 
+var cpmStdDevEstimateBiasCorrect = function(stat, factors) {
+    var degOfFreedom = factors.length;
+    var stdIndex = stat.colIndexOf("StdDev"), countIndex = stat.colIndexOf("Count");
+    var nSum = 0;
+    for (var i = 1; i <= stat.rows(); i++) {
+        nSum += stat.e(i, countIndex);
+    }
+    for (var i = 1; i <= stat.rows(); i++) {
+        var sigma = stat.e(i, stdIndex), n = stat.e(i, countIndex);
+        stat.elements[i-1][stdIndex-1] = stat.elements[i-1][stdIndex-1] * Math.sqrt(nSum / (nSum - degOfFreedom));
+    }
+};
+
 function computeCPM(data, measuredParameter) {
     var measuredParamIndex = data.colIndexOf(measuredParameter);
     var siteIndex = data.colIndexOf("Site");
@@ -297,7 +312,7 @@ function computeCPM(data, measuredParameter) {
     var measVector = data.col(measuredParamIndex);
 
     var cpm_factors = [
-        []
+        [] // Represent the grand average.
     ];
 
     // Add a factor for each level of Site effect. First site is skipped.
@@ -322,8 +337,8 @@ function computeCPM(data, measuredParameter) {
 
     console.log(est.inspect());
 
-    var nComputeAverages = siteLevels.length;
-    var stat = residualMeanSquares(data, tool_factors, cpm_factors, est, measVector, nComputeAverages);
+    var stat = residualMeanSquares(data, tool_factors, cpm_factors, est, measVector);
+    cpmStdDevEstimateBiasCorrect(stat, cpm_factors);
     console.log(stat.inspect());
 
     dataTool0 = data.filter(tool_factors[0]);
