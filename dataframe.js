@@ -260,7 +260,7 @@ var plotToolDistrib = function(svg, stat) {
     var sampledYs = stat.elements.map(function(row) {
         var ls = [];
         var u = row[meanIndex-1], s = row[stdIndex-1];
-        var nSamples = 32;
+        var nSamples = 512;
         for (var i = 0; i <= nSamples; i++) {
             var x = xmin + (xmax - xmin) * i / nSamples;
             ls.push([x, gaussianDens(u, s, x)]);
@@ -271,7 +271,7 @@ var plotToolDistrib = function(svg, stat) {
     var lineFunction = d3.svg.line()
         .x(function (d) { return xScale(d[0]); })
         .y(function (d) { return yScale(d[1]); })
-        .interpolate("basis");
+        .interpolate("linear");
 
     var palette = d3.scale.category10();
 
@@ -294,6 +294,13 @@ var plotToolDistrib = function(svg, stat) {
     chart.append("g")
         .attr("class", "y axis")
         .call(yAxis);
+
+    chart.selectAll(".avgline").data(stat.elements).enter()
+        .append("path").attr("d", function(row, i) {
+            var xAvg = row[meanIndex-1];
+            var yMax = gaussianDens(0, row[stdIndex-1], 0);
+            return "M" + xScale(xAvg) + "," + yScale(0) + " " + xScale(xAvg) + "," + yScale(yMax);
+        }).attr("stroke", "#e12").attr("stroke-dasharray", "5,3");
 
     var g = svg.append("g").attr("transform", chartTranslate);
 
