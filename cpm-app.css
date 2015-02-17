@@ -7,11 +7,20 @@
   font: 10px sans-serif;
 }
 
+.legend text {
+  font: 13px sans-serif;
+}
+
 .axis path,
 .axis line {
   fill: none;
   stroke: #000;
   shape-rendering: crispEdges;
+}
+
+.avgline line {
+	fill: none;
+	stroke-width: 2;
 }
 
 .x.axis path {

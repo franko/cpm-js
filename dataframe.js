@@ -221,6 +221,24 @@ var plotByReprod = function(svg, data, yIndex) {
         .attr("r", 5).style("fill", function(p) { return palette(Math.floor(p[0]/17)); });
 };
 
+var plotLegend = function(svg, items) {
+    var legend = svg.selectAll(".legend").data(items)
+        .enter().append("g")
+        .attr("class", "legend")
+        .attr("transform", function(d, i) { return "translate(0," + i * 24 + ")"; });
+
+    legend.append("path").attr("d", "M 18,24 38,24")
+        .attr("stroke", function(d) { return d.color; })
+        .attr("stroke-width", 2)
+        .attr("fill", "none");
+
+    legend.append("text")
+        .attr("x", 18 + 20 + 10)
+        .attr("y", 18 + 6)
+        .attr("dy", ".35em")
+        .text(function(d) { return d.text; });
+};
+
 var gaussianDens = function(u, s, x) {
     return 1/(Math.sqrt(2*Math.PI) * s) * Math.exp(-Math.pow((x - u)/s, 2)/2);
 }
@@ -257,8 +275,8 @@ var plotToolDistrib = function(svg, stat) {
 
     var palette = d3.scale.category10();
 
-    var chart = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var chartTranslate = "translate(" + margin.left + "," + margin.top + ")";
+    var chart = svg.append("g").attr("transform", chartTranslate);
 
     var xAxis = d3.svg.axis()
         .scale(xScale)
@@ -277,8 +295,7 @@ var plotToolDistrib = function(svg, stat) {
         .attr("class", "y axis")
         .call(yAxis);
 
-    var g = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var g = svg.append("g").attr("transform", chartTranslate);
 
     g.selectAll("path").data(sampledYs)
         .enter().append("path")
@@ -286,6 +303,12 @@ var plotToolDistrib = function(svg, stat) {
         .attr("stroke", function(ys, i) { return palette(i); })
         .attr("stroke-width", 2)
         .attr("fill", "none");
+
+    var gLegend = svg.append("g").attr("transform", chartTranslate);
+    var toolIndex = stat.colIndexOf("Tool");
+    plotLegend(gLegend, stat.elements.map(function(row, i) {
+        return {color: palette(i), text: row[toolIndex-1]};
+    }));
 }
 
 var cpmStdDevEstimateBiasCorrect = function(stat, factors) {
