@@ -392,6 +392,24 @@ var cpmStdDevEstimateBiasCorrect = function(stat, factors) {
     }
 };
 
+var computeSigmaProcess = function(data, factors, estimates) {
+    var siteIndex = data.colIndexOf("Site");
+    var s = 0, n = 0, ssq = 0;
+    /* Count the linear estimate terms that corresponds to a simple
+       site effect. */
+    for (var i = 1; i <= estimates.dimensions(); i++) {
+        var f = factors[i-1];
+        if (f.length == 1 && f[0].column == siteIndex) {
+            var x = estimates.e(i);
+            s += x;
+            ssq += x*x;
+            n++;
+        }
+    }
+    // Divide by (n+1) because the first site is implicitly zero.
+    return Math.sqrt((ssq/n - s/n));
+}
+
 function computeCPM(data, measuredParameter) {
     var measuredParamIndex = data.colIndexOf(measuredParameter);
     var siteIndex = data.colIndexOf("Site");
@@ -444,5 +462,11 @@ function computeCPM(data, measuredParameter) {
     console.log(xL0, xR0);
     console.log(xL, xR);
     var deltaSpec = 60;
-    console.log("CPM:", deltaSpec / (xR - xL));
+
+    var sigmaProcess = computeSigmaProcess(data, cpm_factors, est);
+
+    var resultDiv = d3.select("#cpmresult");
+    resultDiv.append("h1").html("Results");
+    resultDiv.append("p").html("CPM : " + deltaSpec / (xR - xL));
+    resultDiv.append("p").html("\u03C3" + "<sub>process</sub> : " + sigmaProcess);
 };
