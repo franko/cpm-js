@@ -406,8 +406,10 @@ var computeSigmaProcess = function(data, factors, estimates) {
             n++;
         }
     }
-    // Divide by (n+1) because the first site is implicitly zero.
-    return Math.sqrt((ssq/n - s/n));
+    // The average is divided by (n+1) because the first site is implicitly zero.
+    // The overall difference is divided by n to obtained the *unbiased* estimation
+    // of the standard deviation.
+    return Math.sqrt(ssq/n - s*s/((n+1)*n));
 }
 
 function computeCPM(data, measuredParameter) {
@@ -467,6 +469,8 @@ function computeCPM(data, measuredParameter) {
 
     var resultDiv = d3.select("#cpmresult");
     resultDiv.append("h1").html("Results");
-    resultDiv.append("p").html("CPM : " + deltaSpec / (xR - xL));
-    resultDiv.append("p").html("\u03C3" + "<sub>process</sub> : " + sigmaProcess);
+    resultDiv.append("p").html("CPM : " + (deltaSpec / (xR - xL)).toPrecision(5));
+    resultDiv.append("p").html("\u03C3" + "<sub>process</sub> : " + sigmaProcess.toPrecision(5));
+
+    renderTable(resultDiv.append("p"), stat);
 };

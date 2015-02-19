@@ -7,6 +7,11 @@
   font: 10px sans-serif;
 }
 
+.result {
+    font-family: monospace;
+    font-size: 12;
+}
+
 .legend text {
   font: 13px sans-serif;
 }

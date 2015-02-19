@@ -53,6 +53,23 @@ var onParameterChoice = function(tables, selParams) {
     tablesExtractOnParameters(tables, selParams[0]);
 };
 
+function renderTable(element, data) {
+    var table = element.append("table").attr("class", "result");
+    var thead = table.append("thead");
+    var tbody = table.append("tbody");
+
+    thead.append("tr")
+        .selectAll("th").data(data.headers)
+        .enter().append("th").text(function(d) { return d; });
+
+    var rows = tbody.selectAll("tr").data(data.elements)
+        .enter().append("tr");
+
+    var cells = rows.selectAll("td").data(function(d) { return d; })
+        .enter().append("td")
+        .text(function(d) { return (typeof d == "number" ? d.toPrecision(5) : d); });
+}
+
 var renderParameters = function(tables, onChoice) {
     var div = d3.select("#parameters");
     var sel = div.append("select");
