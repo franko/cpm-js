@@ -1,5 +1,5 @@
 
-var tablesExtractOnParameters = function(tables, parameterIndex) {
+var tablesExtractOnParameters = function(tables, parameterIndex, paramName, deltaSpec) {
     var iTable = parameterIndex[0], iCol = parameterIndex[1];
     var table = tables[iTable];
     var data = [];
@@ -14,8 +14,10 @@ var tablesExtractOnParameters = function(tables, parameterIndex) {
         }
         data[i] = row;
     }
+    // Rename measured parameter with user's supplied name.
+    fields[fields.length - 1] = paramName;
     var cpmData = DataFrame.create(data, fields);
-    computeCPM(cpmData, table.resultHeaders[iCol]);
+    computeCPM(cpmData, paramName, deltaSpec);
 };
 
 var renderMeasTable = function(measTable) {
@@ -50,7 +52,10 @@ var onParameterChoice = function(tables, selParams) {
     for (var i = 0, t; t = tables[i]; i++) {
         renderMeasTable(t);
     }
-    tablesExtractOnParameters(tables, selParams[0]);
+    var index = 0;
+    var paramName = d3.select("#paramnameinput" + (index+1)).property("value");
+    var deltaSpec = +d3.select("#deltaspecinput" + (index+1)).property("value");
+    tablesExtractOnParameters(tables, selParams[index], paramName, deltaSpec);
 };
 
 function renderTable(element, data) {
@@ -88,6 +93,7 @@ var renderParameters = function(tables, onChoice) {
     thRow.append("th").text("Measurement Set");
     thRow.append("th").text("Tool Name");
     thRow.append("th").text("Parameter Name");
+    thRow.append("th").text("Delta Spec");
 
     var selParams = [];
 
@@ -124,7 +130,8 @@ var renderParameters = function(tables, onChoice) {
                 var tr = tbody.append("tr");
                 tr.append("td").text(selTable.info["MEAS SET"]);
                 tr.append("td").text(selTable.resultHeaders[j]);
-                tr.append("td").append("input").attr("type", "text").attr("value", "TH_SOMETHING_" + String(selParams.length));
+                tr.append("td").append("input").attr("type", "text").attr("value", "THICKNESS_" + String(selParams.length)).attr("id", "paramnameinput" + selParams.length);
+                tr.append("td").append("input").attr("type", "number").attr("id", "deltaspecinput" + selParams.length);
             }
         });
 
