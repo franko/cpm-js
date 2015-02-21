@@ -61,12 +61,12 @@ DataFrame.prototype.setElements = function(data) {
     this.elements = data;
 };
 
-var matchFactors = function(t, i, values) {
+DataFrame.prototype.rowMatchFactors = function(i, values) {
     var match = 0;
     var kno = values.length;
     for (var k = 0; k < kno; k++) {
         var j = values[k].column, xval = values[k].value;
-        if (t.e(i, j) === xval) {
+        if (this.e(i, j) === xval) {
             match += 1;
         }
     }
@@ -76,7 +76,7 @@ var matchFactors = function(t, i, values) {
 DataFrame.prototype.filter = function(condition) {
     var data = [];
     for (var i = 1; i < this.rows(); i++) {
-        if (matchFactors(this, i, condition)) {
+        if (this.rowMatchFactors(i, condition)) {
             data.push(this.elements[i-1]);
         }
     }
@@ -87,7 +87,7 @@ var sumOccurrences = function(t, values, y) {
     var sum = 0;
     for (var i = 1; i <= t.rows(); i++) {
         var yi = y ? y.e(i) : 1;
-        sum += matchFactors(t, i, values) ? yi : 0;
+        sum += t.rowMatchFactors(i, values) ? yi : 0;
     }
     return sum;
 };
@@ -123,7 +123,7 @@ var buildFactorSumVector = function(tab, factors, y) {
 var evalRowExpected = function(factors, estimates, tab, i) {
     var sum = 0;
     for (var p = 0; p < factors.length; p++) {
-        var match = matchFactors(tab, i, factors[p]);
+        var match = tab.rowMatchFactors(i, factors[p]);
         sum += match ? estimates.e(p+1) : 0;
     }
     return sum;
@@ -148,7 +148,7 @@ var residualMeanSquares = function(tab, groups, factors, estimates, y) {
         var sumsq = 0, n = 0;
         var sum = 0;
         for (var i = 1; i <= tab.rows(); i++) {
-            if (matchFactors(tab, i, condition)) {
+            if (tab.rowMatchFactors(i, condition)) {
                 var yEst = evalRowExpected(factors, estimates, tab, i);
                 sum += y.e(i);
                 sumsq += Math.pow(yEst - y.e(i), 2);
@@ -180,7 +180,7 @@ var plotByReprod = function(svg, data, yIndex) {
     var xLevelConditions = xLevels.map(function(ys) { return ys.map(toCondition); });
     var values = data.elements.map(function(row, i) {
         for (var k = 0; k < xLevels.length; k++) {
-            if (matchFactors(data, i+1, xLevelConditions[k])) {
+            if (data.rowMatchFactors(i+1, xLevelConditions[k])) {
                 return [k, row[yIndex - 1]];
             }
         }
