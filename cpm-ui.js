@@ -1,61 +1,32 @@
 
-var tablesExtractOnParameters = function(tables, parameterIndex, paramName, deltaSpec) {
+var tablesExtractOnParameters = function(measSections, parameterIndex, paramName, deltaSpec) {
     var iTable = parameterIndex[0], iCol = parameterIndex[1];
-    var table = tables[iTable];
+    var section = measSections[iTable];
+    var table = section.table;
     var data = [];
-    var n = table.meas.length;
+    var n = table.rows();
     var fields = ["Tool", "Wafer", "Reprod", "Site", "Repeat"];
-    fields.push(table.resultHeaders[iCol]);
-    var colIndex = fields.map(function(d) { return table.headers.indexOf(d); });
-    for (var i = 0; i < n; i++) {
+    fields.push(section.resultHeaders[iCol]);
+    var colIndex = fields.map(function(d) { return table.colIndexOf(d); });
+    for (var i = 1; i <= n; i++) {
         var row = [];
         for (var k = 0; k < colIndex.length; k++) {
-            row[k] = table.meas[i][colIndex[k]];
+            row[k] = table.e(i, colIndex[k]);
         }
-        data[i] = row;
+        data.push(row);
     }
     // Rename measured parameter with user's supplied name.
     fields[fields.length - 1] = paramName;
     var cpmData = DataFrame.create(data, fields);
+    renderTable(d3.select("#container"), cpmData);
     computeCPM(cpmData, paramName, deltaSpec);
 };
 
-var renderMeasTable = function(measTable) {
-    var table = d3.select("#container").append("table")
-    var thead = table.append("thead");
-    var tbody = table.append("tbody");
-
-    table.classed("measure", true);
-
-    thead.append("tr")
-        .selectAll("th")
-        .data(measTable.headers)
-        .enter()
-        .append("th")
-            .text(function(column) { return column; });
-
-    // create a row for each object in the data
-    var rows = tbody.selectAll("tr")
-        .data(measTable.meas)
-        .enter()
-        .append("tr");
-
-    // create a cell in each row for each column
-    var cells = rows.selectAll("td")
-        .data(function(row) { return row; })
-        .enter()
-        .append("td")
-            .text(function(d) { return d; });
-};
-
-var onParameterChoice = function(tables, selParams) {
-    for (var i = 0, t; t = tables[i]; i++) {
-        renderMeasTable(t);
-    }
+var onParameterChoice = function(measSections, selParams) {
     var index = 0;
     var paramName = d3.select("#paramnameinput" + (index+1)).property("value");
     var deltaSpec = +d3.select("#deltaspecinput" + (index+1)).property("value");
-    tablesExtractOnParameters(tables, selParams[index], paramName, deltaSpec);
+    tablesExtractOnParameters(measSections, selParams[index], paramName, deltaSpec);
 };
 
 function renderTable(element, data) {
@@ -72,17 +43,17 @@ function renderTable(element, data) {
 
     var cells = rows.selectAll("td").data(function(d) { return d; })
         .enter().append("td")
-        .text(function(d) { return (typeof d == "number" ? d.toPrecision(5) : d); });
+        .text(function(d) { return d; });
 }
 
-var renderParameters = function(tables, onChoice) {
+var renderParameters = function(measSections, onChoice) {
     var div = d3.select("#parameters");
     var sel = div.append("select");
-    var optGroups = sel.selectAll("optgroup").data(tables)
+    var optGroups = sel.selectAll("optgroup").data(measSections)
         .enter().append("optgroup")
         .attr("label", function(d) { return d.info["MEAS SET"]; });
 
-    optGroups.selectAll("option").data(function(table) { return table.resultHeaders; })
+    optGroups.selectAll("option").data(function(section) { return section.resultHeaders; })
         .enter().append("option").text(function(d) { return d; });
 
     var t = div.append("table");
@@ -113,8 +84,8 @@ var renderParameters = function(tables, onChoice) {
             if (index < 0) return;
             var offset = 0;
             var i = 0, j;
-            while (i < tables.length) {
-                var t = tables[i];
+            while (i < measSections.length) {
+                var t = measSections[i];
                 if (index < offset + t.resultHeaders.length) {
                     j = (index - offset);
                     break;
@@ -122,55 +93,36 @@ var renderParameters = function(tables, onChoice) {
                 offset += t.resultHeaders.length;
                 i++;
             }
-            var selTable = tables[i];
+            var selSection = measSections[i];
             var iPair = [i, j];
             var iFound = findIndexes(selParams, iPair);
             if (iFound < 0) {
                 selParams.push(iPair);
                 var tr = tbody.append("tr");
-                tr.append("td").text(selTable.info["MEAS SET"]);
-                tr.append("td").text(selTable.resultHeaders[j]);
+                tr.append("td").text(selSection.info["MEAS SET"]);
+                tr.append("td").text(selSection.resultHeaders[j]);
                 tr.append("td").append("input").attr("type", "text").attr("value", "THICKNESS_" + String(selParams.length)).attr("id", "paramnameinput" + selParams.length);
                 tr.append("td").append("input").attr("type", "number").attr("id", "deltaspecinput" + selParams.length);
             }
         });
 
     var nsButton = div.append("button").text("Next")
-        .on("click", function() { onChoice(tables, selParams); });
+        .on("click", function() { onChoice(measSections, selParams); });
 }
 
-var mergeTables = function(tables, src) {
-    for (var i = 0; i < src.length; i++) {
-        var j;
-        for (j = 0; j < tables.length; j++) {
-            if (FXParser.tablesDoMatch(tables[j], src[i])) {
-                var data = tables[j].meas;
-                for (var k = 0; k < src[i].meas.length; k++) {
-                    data.push(src[i].meas[k]);
-                }
-                break;
-            }
-        }
-        if (j >= tables.length) {
-            tables.push(src[i]);
-        }
-    }
-};
-
 var onFileComplete = function(files) {
-    var tables = [];
+    var measSections = [];
     var count = 0;
     for (var i = 0; i < files.length; i++) {
         var onLoadFileIndexed = function(index) {
             return function(evt) {
                 if (evt.target.readyState == FileReader.DONE) {
-                    var parser = new FXParser(evt.target.result, {groupRepeat: 5});
+                    var parser = new FXParser(evt.target.result, {groupRepeat: 5, sections: measSections});
                     var dt = parser.readDateTime();
                     parser.readAll({tool: files[index].tool, reprod: files[index].reprod});
-                    mergeTables(tables, parser.tables);
                     count++;
                     if (count >= files.length) {
-                        renderParameters(tables, onParameterChoice);
+                        renderParameters(measSections, onParameterChoice);
                     }
                 }
             };

@@ -22,7 +22,6 @@ var csvReader = function(text) {
 };
 
 var generalTags = ['RECIPE', 'MEAS SET', 'SITE'];
-// var sectionTags = ['LOT ID', 'SLOT', 'WAFER ID', 'RCP CNT'];
 var sectionTags = ['SLOT', 'Tool', 'Reprod'];
 
 var collectTag = function(tag) {
@@ -41,7 +40,7 @@ var tagsDoMatch = function(tagList, a, b) {
 
 FXParser = function(text, options) {
     this.reader = csvReader(text);
-    this.tables = [];
+    this.measSections = (options && options.sections) ? options.sections : [];
     if (options && options.groupRepeat) {
         this.groupRepeat = options.groupRepeat;
     }
@@ -50,7 +49,6 @@ FXParser = function(text, options) {
 FXParser.tablesDoMatch = function(ta, tb) {
     return tagsDoMatch(generalTags, ta.info, tb.info);
 };
-
 
 FXParser.prototype = {
     readDateTime: function() {
@@ -81,11 +79,12 @@ FXParser.prototype = {
     },
 
     mergeMeasurements: function(info, meas, headers) {
-        for (var i = 0; i < this.tables.length; i++) {
-            var table = this.tables[i];
-            if (tagsDoMatch(generalTags, table.info, info)) {
+        for (var i = 0; i < this.measSections.length; i++) {
+            var section = this.measSections[i];
+            if (tagsDoMatch(generalTags, section.info, info)) {
+                var tableElements = section.table.elements;
                 for (var j = 0; j < meas.length; j++) {
-                    table.meas.push(meas[j]);
+                    tableElements.push(meas[j]);
                 }
                 return;
             }
@@ -97,7 +96,8 @@ FXParser.prototype = {
         }
         fullHeaders = fullHeaders.concat(headers);
         var resultHeaders = headers.slice(1);
-        this.tables.push({info: info, meas: meas, headers: fullHeaders, resultHeaders: resultHeaders});
+        var table = DataFrame.create(meas, fullHeaders);
+        this.measSections.push({info: info, table: table, resultHeaders: resultHeaders});
     },
 
     readSection: function(measInfo) {
