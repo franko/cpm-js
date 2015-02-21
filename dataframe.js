@@ -407,12 +407,23 @@ var computeSigmaProcess = function(data, factors, estimates) {
         }
     }
     // The average is divided by (n+1) because the first site is implicitly zero.
-    // The overall difference is divided by n to obtained the *unbiased* estimation
+    // The overall difference is divided by n to obtain the *unbiased* estimation
     // of the standard deviation.
     return Math.sqrt(ssq/n - s*s/((n+1)*n));
 }
 
-function computeCPM(data, measuredParameter) {
+var cpmComputeByTool = function(stat, deltaSpec) {
+    var stdIndex = stat.colIndexOf("StdDev");
+    var toolIndex = stat.colIndexOf("Tool");
+    var cpmData = [];
+    for (var i = 1; i <= stat.rows(); i++) {
+        var cpm = deltaSpec / (6 * stat.e(i, stdIndex));
+        cpmData.push([stat.e(i, toolIndex), stat.e(i, stdIndex), cpm]);
+    }
+    return DataFrame.create(cpmData, ["Tool", "StdDev", "CPM"]);
+}
+
+function computeCPM(data, measuredParameter, deltaSpec) {
     var measuredParamIndex = data.colIndexOf(measuredParameter);
     var siteIndex = data.colIndexOf("Site");
     var toolIndex = data.colIndexOf("Tool");
@@ -450,6 +461,7 @@ function computeCPM(data, measuredParameter) {
 
     var stat = residualMeanSquares(data, tool_factors, cpm_factors, est, measVector);
     cpmStdDevEstimateBiasCorrect(stat, cpm_factors);
+    var cpmTable = cpmComputeByTool(stat, deltaSpec);
     console.log(stat.inspect());
 
     dataTool0 = data.filter(tool_factors[0]);
@@ -461,16 +473,12 @@ function computeCPM(data, measuredParameter) {
     var xR0 = d3.max(stat.elements, function(row) { return row[stat.colIndexOf("Mean")-1] + 3*row[stat.colIndexOf("StdDev")-1]; });
     var xL = mixtureGaussianQuantiles(stat, 0.0013498980316301, xL0);
     var xR = mixtureGaussianQuantiles(stat, 1 - 0.0013498980316301, xR0);
-    console.log(xL0, xR0);
-    console.log(xL, xR);
-    var deltaSpec = 60;
 
     var sigmaProcess = computeSigmaProcess(data, cpm_factors, est);
 
     var resultDiv = d3.select("#cpmresult");
     resultDiv.append("h1").html("Results");
-    resultDiv.append("p").html("CPM : " + (deltaSpec / (xR - xL)).toPrecision(5));
     resultDiv.append("p").html("\u03C3" + "<sub>process</sub> : " + sigmaProcess.toPrecision(5));
-
-    renderTable(resultDiv.append("p"), stat);
+    renderTable(resultDiv.append("p"), cpmTable);
+    resultDiv.append("p").html("CPM<sub>toolset</sub> : " + (deltaSpec / (xR - xL)).toPrecision(5));
 };
