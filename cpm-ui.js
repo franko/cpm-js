@@ -205,13 +205,16 @@ function computeCPM(data, measuredParameter, deltaSpec) {
     resultDiv.append("p").html("CPM<sub>toolset</sub> : " + (deltaSpec / (xR - xL)).toPrecision(5));
 };
 
-var tablesExtractOnParameters = function(measSections, parameterIndex, paramName, deltaSpec) {
+var tablesExtractOnParameters = function(measSections, parameterIndex, paramName, deltaSpec, useDateTime) {
     var iTable = parameterIndex[0], iCol = parameterIndex[1];
     var section = measSections[iTable];
     var table = section.table;
     var data = [];
     var n = table.rows();
     var fields = ["Tool", "Wafer", "Reprod", "Site", "Repeat"];
+    if (useDateTime) {
+        fields.splice(1, 0, "Time");
+    }
     fields.push(section.resultHeaders[iCol]);
     var colIndex = fields.map(function(d) { return table.colIndexOf(d); });
     for (var i = 1; i <= n; i++) {
@@ -228,11 +231,11 @@ var tablesExtractOnParameters = function(measSections, parameterIndex, paramName
     computeCPM(cpmData, paramName, deltaSpec);
 };
 
-var onParameterChoice = function(measSections, selParams) {
+var onParameterChoice = function(measSections, selParams, useDateTime) {
     var index = 0;
     var paramName = d3.select("#paramnameinput" + (index+1)).property("value");
     var deltaSpec = +d3.select("#deltaspecinput" + (index+1)).property("value");
-    tablesExtractOnParameters(measSections, selParams[index], paramName, deltaSpec);
+    tablesExtractOnParameters(measSections, selParams[index], paramName, deltaSpec, useDateTime);
 };
 
 function renderTable(element, data) {
@@ -254,6 +257,11 @@ function renderTable(element, data) {
 
 var renderParameters = function(measSections, onChoice) {
     var div = d3.select("#parameters");
+
+    var dtpar = div.append("p")
+    dtpar.html("Include Date/Time")
+    var checktime = dtpar.append("input").attr("type", "checkbox").attr("value", "datetime");
+
     var sel = div.append("select");
     var optGroups = sel.selectAll("optgroup").data(measSections)
         .enter().append("optgroup")
@@ -313,21 +321,35 @@ var renderParameters = function(measSections, onChoice) {
         });
 
     var nsButton = div.append("button").text("Next")
-        .on("click", function() { onChoice(measSections, selParams); });
+        .on("click", function() { onChoice(measSections, selParams, checktime.property("checked")); });
+}
+
+var adjustSectionsDateTime = function(measSections, datetime_min) {
+    for (var k = 0; k < measSections.length; k++) {
+        var section = measSections[k];
+        var table = section.table;
+        var timeIndex = table.colIndexOf("Time") - 1;
+        for (var i = 0; i < table.rows(); i++) {
+            table.elements[i][timeIndex] = table.elements[i][timeIndex] - datetime_min;
+        }
+    }
 }
 
 var onFileComplete = function(files) {
     var measSections = [];
     var count = 0;
+    var datetime_min = null;
     for (var i = 0; i < files.length; i++) {
         var onLoadFileIndexed = function(index) {
             return function(evt) {
                 if (evt.target.readyState == FileReader.DONE) {
                     var parser = new FXParser(evt.target.result, {groupRepeat: 5, sections: measSections});
                     var dt = parser.readDateTime();
-                    parser.readAll({tool: files[index].tool, reprod: files[index].reprod});
+                    datetime_min = (datetime_min === null || dt < datetime_min) ? dt : datetime_min;
+                    parser.readAll({tool: files[index].tool, reprod: files[index].reprod, time: dt});
                     count++;
                     if (count >= files.length) {
+                        adjustSectionsDateTime(measSections, datetime_min);
                         renderParameters(measSections, onParameterChoice);
                     }
                 }

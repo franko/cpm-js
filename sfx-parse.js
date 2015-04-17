@@ -22,7 +22,7 @@ var csvReader = function(text) {
 };
 
 var generalTags = ['RECIPE', 'MEAS SET', 'SITE'];
-var sectionTags = ['SLOT', 'Tool', 'Reprod'];
+var sectionTags = ['SLOT', 'Tool', 'Reprod', 'Time'];
 
 var collectTag = function(tag) {
     return generalTags.indexOf(tag) >= 0 || sectionTags.indexOf(tag) >= 0;
@@ -55,10 +55,18 @@ FXParser.prototype = {
         for (var row = this.next(); row; row = this.next()) {
             if (!row[0]) break;
             if (row[0].indexOf('COLLECTION DATE/TIME:') >= 0) {
-                return row.length > 1 ? row[1] : "";
+                if (row.length > 1) {
+                    var datere = /(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)/;
+                    var m = datere.exec(row[1]);
+                    if (m) {
+                        var sec = Number(m[6]) + Number(m[5])*60 + Number(m[4]) * 3600 + Number(m[2]) * 24 * 3600;
+                        console.log('seconds', sec);
+                        return sec / 3600;
+                    }
+                }
             }
         }
-        return "";
+        return 0;
     },
 
     readMeasurements: function(attrs) {
@@ -101,7 +109,7 @@ FXParser.prototype = {
     },
 
     readSection: function(measInfo) {
-        var info = {Tool: measInfo.tool, Reprod: measInfo.reprod};
+        var info = {Tool: measInfo.tool, Reprod: measInfo.reprod, Time: measInfo.time};
         var headers;
         for (var row = this.next(); row; row = this.next()) {
             var key = row[0];
