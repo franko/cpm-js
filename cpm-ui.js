@@ -1,4 +1,82 @@
 
+var loadFiles
+
+
+/* ********************** File List / Read Files ****************** */
+
+/* Given a "file" return a list with [filename, toolname, reprod].
+   As for the "file" argument it is just required to have a "name" field.
+   The toolname and reprod is guessed from the filename. */
+var filenameToolFields = function(file, i) {
+    var nameRe = /(Q[A-Z0-9]+).*SERIE([0-9]+)/i;
+    var filename = file.name;
+    var match = nameRe.exec(filename);
+    if (match) {
+        return [filename, match[1], match[2]];
+    } else {
+        return [filename, "Tool " + String.fromCharCode(65 + i), "1"];
+    }
+};
+
+var fileListRowId = function(i) { return "fileListRow" + String(i); }
+
+/* Create a Table with the filename, tool name and reprod number.
+   Identifies each row with the Id given by fileListRowId. */
+var createFileListTable = function(containerId, files) {
+    var table = d3.select(containerId).append("table")
+    var thead = table.append("thead");
+    var tbody = table.append("tbody").attr("id", "filetable");
+
+    thead.append("tr")
+        .selectAll("th")
+        .data(["Filename", "Tool", "Reprod"])
+        .enter()
+        .append("th")
+            .text(function(column) { return column; });
+
+    // create a row for each object in the data
+    var rows = tbody.selectAll("tr")
+        .data(files)
+        .enter()
+        .append("tr").attr("id", function(d, i) { return fileListRowId(i); });
+
+    // create a cell in each row for each column
+    var cells = rows.selectAll("td")
+        .data(filenameToolFields)
+        .enter().append("td")
+        .html(function(d, i) {
+            if (i == 1 || i == 2) {
+                return "<input type=\"text\" value=" + JSON.stringify(d) + ">";
+            } else {
+                return d;
+            }
+        });
+}
+
+/* Collect all the file's data from the "File List" table and
+   pass the array to the "loadFiles" function. */
+var onButtonReadFiles = function(files) {
+    var annFiles = [];
+    for (var k = 0; k < files.length; k++) {
+        var tr = document.getElementById(fileListRowId(k));
+        var tool = tr.childNodes[1].firstChild.value;
+        var reprod = Number(tr.childNodes[2].firstChild.value);
+        annFiles.push({handler: files[k], tool: tool, reprod: reprod});
+    }
+    loadFiles(annFiles);
+}
+
+function onFileSelection(evt) {
+    var files = evt.target.files;
+    var containerId = "#file_select";
+    createFileListTable(containerId, files);
+    var button = d3.select(containerId).append("button").text("Read Files");
+    button.on("click", function() { return onButtonReadFiles(files); });
+}
+
+
+
+
 var plotByReprod = function(svg, data, yIndex) {
     var svgWidth = svg.attr("width"), svgHeight = svg.attr("height");
     var margin = {top: 20, right: 30, bottom: 30, left: 40};
@@ -335,7 +413,7 @@ var adjustSectionsDateTime = function(measSections, datetime_min) {
     }
 }
 
-var onFileComplete = function(files) {
+function loadFiles(files) {
     var measSections = [];
     var count = 0;
     var datetime_min = null;
@@ -360,62 +438,3 @@ var onFileComplete = function(files) {
         reader.readAsText(files[i].handler);
     }
 };
-
-var filenameToolFields = function(file, i) {
-    var nameRe = /(Q[A-Z0-9]+).*SERIE([0-9]+)/i;
-    var name = file.name;
-    var match = nameRe.exec(name);
-    if (match) {
-        return [name, match[1], match[2]];
-    } else {
-        return [name, "Tool " + String.fromCharCode(65 + i), "1"];
-    }
-};
-
-var renderFileListTable = function(files, onComplete) {
-    var table = d3.select("#file_select").append("table")
-    var thead = table.append("thead");
-    var tbody = table.append("tbody").attr("id", "filetable");
-
-    thead.append("tr")
-        .selectAll("th")
-        .data(["Filename", "Tool", "Reprod"])
-        .enter()
-        .append("th")
-            .text(function(column) { return column; });
-
-    // create a row for each object in the data
-    var rows = tbody.selectAll("tr")
-        .data(files)
-        .enter()
-        .append("tr").attr("id", function(d, i) { return "row" + String(i); });
-
-    // create a cell in each row for each column
-    var cells = rows.selectAll("td")
-        .data(filenameToolFields)
-        .enter().append("td")
-        .html(function(d, i) {
-            if (i == 1 || i == 2) {
-                return "<input type=\"text\" value=" + JSON.stringify(d) + ">";
-            } else {
-                return d;
-            }
-        });
-
-    var button = d3.select("#file_select").append("button").text("Read Files");
-    button.on("click", function() {
-        var annFiles = [];
-        for (var k = 0; k < files.length; k++) {
-            var tr = document.getElementById("row" + String(k));
-            var tool = tr.childNodes[1].firstChild.value;
-            var reprod = Number(tr.childNodes[2].firstChild.value);
-            annFiles.push({handler: files[k], tool: tool, reprod: reprod});
-        }
-        onComplete(annFiles);
-    });
-};
-
-function onFileSelection(evt) {
-    var files = evt.target.files;
-    renderFileListTable(files, onFileComplete);
-}
