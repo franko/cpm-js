@@ -75,7 +75,7 @@ DataFrame.prototype.rowMatchFactors = function(i, values) {
 
 DataFrame.prototype.filter = function(condition) {
     var data = [];
-    for (var i = 1; i < this.rows(); i++) {
+    for (var i = 1; i <= this.rows(); i++) {
         if (this.rowMatchFactors(i, condition)) {
             data.push(this.elements[i-1]);
         }
