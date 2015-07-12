@@ -65,28 +65,32 @@ var stdDevEstimateBiasCorrect = function(stat, factors) {
     }
 };
 
+/* For a given "condition" (a factor) return the average of the terms "y", the
+ * stddev of the residuals between "y" and the estimated values and the
+ * number of terms. */
+var elementResidualStats = function(tab, condition, factors, estimates, y) {
+    var stat = [];
+    var sumsq = 0, n = 0, sum = 0;
+    for (var i = 1; i <= tab.rows(); i++) {
+        if (tab.rowMatchFactors(i, condition)) {
+            var yEst = evalRowExpected(factors, estimates, tab, i);
+            sum += y.e(i);
+            sumsq += Math.pow(yEst - y.e(i), 2);
+            n += 1;
+        }
+    }
+    stat.push(sum / n);
+    stat.push(Math.sqrt(sumsq / n));
+    stat.push(n);
+    return stat;
+};
+
 var residualMeanSquares = function(tab, groups, factors, estimates, y) {
     var stat = [];
     for (var p = 0; p < groups.length; p++) {
-        var condition = groups[p];
-        var row = [];
-        for (var k = 0; k < condition.length; k++) {
-            row[k] = condition[k].value;
-        }
-        var sumsq = 0, n = 0;
-        var sum = 0;
-        for (var i = 1; i <= tab.rows(); i++) {
-            if (tab.rowMatchFactors(i, condition)) {
-                var yEst = evalRowExpected(factors, estimates, tab, i);
-                sum += y.e(i);
-                sumsq += Math.pow(yEst - y.e(i), 2);
-                n += 1;
-            }
-        }
-        row.push(sum / n);
-        row.push(Math.sqrt(sumsq / n));
-        row.push(n);
-        stat.push(row);
+        var levelElem = groups[p].map(function(c) { return c.value; });
+        var statElem = elementResidualStats(tab, groups[p], factors, estimates, y);
+        stat.push(levelElem.concat(statElem));
     }
     var statHeaders = groups[0].map(function(d) { return tab.headers[d.column - 1]; });
     statHeaders.push("Mean");
@@ -197,5 +201,7 @@ Cpm = {
     residualMeanSquares: residualMeanSquares,
     mixtureGaussianQuantiles: mixtureGaussianQuantiles,
     computeSigmaProcess: computeSigmaProcess,
+    elementResidualStats: elementResidualStats,
+    stdDevEstimateBiasCorrect: stdDevEstimateBiasCorrect,
     computeByTool: computeByTool,
 };

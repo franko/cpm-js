@@ -1,6 +1,6 @@
 
 var loadFiles
-
+var createParametersDialog
 
 /* ********************** File List / Read Files ****************** */
 
@@ -73,6 +73,49 @@ function onFileSelection(evt) {
     var button = d3.select(containerId).append("button").text("Read Files");
     button.on("click", function() { return onButtonReadFiles(files); });
 }
+
+
+
+
+
+/* ********************** Load and Parse files ****************** */
+
+var adjustSectionsDateTime = function(measSections, datetime_min) {
+    for (var k = 0; k < measSections.length; k++) {
+        var section = measSections[k];
+        var table = section.table;
+        var timeIndex = table.colIndexOf("Time") - 1;
+        for (var i = 0; i < table.rows(); i++) {
+            table.elements[i][timeIndex] = table.elements[i][timeIndex] - datetime_min;
+        }
+    }
+}
+
+function loadFiles(files) {
+    var measSections = [];
+    var count = 0;
+    var datetime_min = null;
+    for (var i = 0; i < files.length; i++) {
+        var onLoadFileIndexed = function(index) {
+            return function(evt) {
+                if (evt.target.readyState == FileReader.DONE) {
+                    var parser = new FXParser(evt.target.result, {groupRepeat: 5, sections: measSections});
+                    var dt = parser.readDateTime();
+                    datetime_min = (datetime_min === null || dt < datetime_min) ? dt : datetime_min;
+                    parser.readAll({tool: files[index].tool, reprod: files[index].reprod, time: dt});
+                    count++;
+                    if (count >= files.length) {
+                        adjustSectionsDateTime(measSections, datetime_min);
+                        createParametersDialog(measSections);
+                    }
+                }
+            };
+        };
+        var reader = new FileReader();
+        reader.onloadend = onLoadFileIndexed(i);
+        reader.readAsText(files[i].handler);
+    }
+};
 
 
 
@@ -228,46 +271,79 @@ var plotToolDistrib = function(svg, stat) {
     }));
 }
 
-function computeCPM(data, measuredParameter, deltaSpec) {
+const CPM_TOOLSET = 0;
+const CPM_SINGLE_TOOLS = 1;
+
+function computeCPM(data, measuredParameter, deltaSpec, cpmSchema) {
     var measuredParamIndex = data.colIndexOf(measuredParameter);
     var siteIndex = data.colIndexOf("Site");
     var toolIndex = data.colIndexOf("Tool");
 
-    var siteLevels = data.findLevels("Site");
     var toolLevels = data.findLevels("Tool");
 
-    var measVector = data.col(measuredParamIndex);
+    var stat;
+    if (cpmSchema == CPM_TOOLSET) {
+        var siteLevels = data.findLevels("Site");
+        var measVector = data.col(measuredParamIndex);
 
-    var cpm_factors = [
-        [] // Represent the grand average.
-    ];
+        var cpm_factors = [
+            [] // Represent the grand average.
+        ];
 
-    // Add a factor for each level of Site effect. First site is skipped.
-    for (var k = 1, level; level = siteLevels[k]; k++) {
-        cpm_factors.push([{column: siteIndex, value: level}]);
+        // Add a factor for each level of Site effect. First site is skipped.
+        for (var k = 1, level; level = siteLevels[k]; k++) {
+            cpm_factors.push([{column: siteIndex, value: level}]);
+        }
+
+        // Add a factor for each level of Tool effect. First tool is skipped.
+        for (var k = 1, level; level = toolLevels[k]; k++) {
+            cpm_factors.push([{column: toolIndex, value: level}]);
+        }
+
+        var tool_factors = [];
+        for (var k = 0, level; level = toolLevels[k]; k++) {
+            tool_factors.push([{column: toolIndex, value: level}]);
+        }
+
+        var K = LinEst.buildFactorMatrix(data, cpm_factors);
+        var S = LinEst.buildFactorSumVector(data, cpm_factors, measVector);
+        var est = K.inverse().multiply(S); // Estimates.
+
+        stat = Cpm.residualMeanSquares(data, tool_factors, cpm_factors, est, measVector);
+    } else {
+        var statData = [];
+        for (var k = 0, tool; tool = toolLevels[k]; k++) {
+            var tool_factor = [{column: toolIndex, value: tool}];
+            var dataTool = data.filter(tool_factor);
+            var siteLevels = dataTool.findLevels("Site");
+            var measVector = dataTool.col(measuredParamIndex);
+            var cpm_factors = [
+                [] // Represent the grand average.
+            ];
+            // Add a factor for each level of Site effect. First site is skipped.
+            for (var j = 1, site; site = siteLevels[j]; j++) {
+                cpm_factors.push([{column: siteIndex, value: site}]);
+            }
+            var K = LinEst.buildFactorMatrix(dataTool, cpm_factors);
+            var S = LinEst.buildFactorSumVector(dataTool, cpm_factors, measVector);
+            var est = K.inverse().multiply(S); // Estimates.
+            var statTool = Cpm.elementResidualStats(dataTool, tool_factor, cpm_factors, est, measVector);
+            statData.push([tool].concat(statTool));
+        }
+        stat = DataFrame.create(statData, ["Tool", "Mean", "StdDev", "Count"]);
+        stdDevEstimateBiasCorrect(stat, cpm_factors);
     }
 
-    // Add a factor for each level of Tool effect. First tool is skipped.
-    for (var k = 1, level; level = toolLevels[k]; k++) {
-        cpm_factors.push([{column: toolIndex, value: level}]);
-    }
-
-    var tool_factors = [];
-    for (var k = 0, level; level = toolLevels[k]; k++) {
-        tool_factors.push([{column: toolIndex, value: level}]);
-    }
-
-    var K = LinEst.buildFactorMatrix(data, cpm_factors);
-    var S = LinEst.buildFactorSumVector(data, cpm_factors, measVector);
-    var est = K.inverse().multiply(S); // Estimates.
-
-    var stat = Cpm.residualMeanSquares(data, tool_factors, cpm_factors, est, measVector);
     var cpmTable = Cpm.computeByTool(stat, deltaSpec);
 
-    dataTool0 = data.filter(tool_factors[0]);
-    plotByReprod(d3.select("#toolrep"), dataTool0, measuredParamIndex);
+    for (var i = 0; i < toolLevels.length; i++) {
+        var dataTool = data.filter([{column: toolIndex, value: toolLevels[i]}]);
+        var plotSvg = d3.select("#toolrep").append("svg").attr("width", 640).attr("height", 480);
+        plotByReprod(plotSvg, dataTool, measuredParamIndex);
+    }
 
-    plotToolDistrib(d3.select("#gaussplot"), stat);
+    var gaussPlotSvg = d3.select("#gaussplot").append("svg").attr("width", 640).attr("height", 480);
+    plotToolDistrib(gaussPlotSvg, stat);
 
     var xL0 = d3.min(stat.elements, function(row) { return row[stat.colIndexOf("Mean")-1] - 3*row[stat.colIndexOf("StdDev")-1]; });
     var xR0 = d3.max(stat.elements, function(row) { return row[stat.colIndexOf("Mean")-1] + 3*row[stat.colIndexOf("StdDev")-1]; });
@@ -304,16 +380,16 @@ var tablesExtractOnParameters = function(measSections, parameterIndex, paramName
     }
     // Rename measured parameter with user's supplied name.
     fields[fields.length - 1] = paramName;
-    var cpmData = DataFrame.create(data, fields);
-    renderTable(d3.select("#container"), cpmData);
-    computeCPM(cpmData, paramName, deltaSpec);
+    return DataFrame.create(data, fields);
 };
 
-var onParameterChoice = function(measSections, selParams, useDateTime) {
+var onParameterChoice = function(measSections, selParams, useDateTime, cpmSchema) {
     var index = 0;
     var paramName = d3.select("#paramnameinput" + (index+1)).property("value");
     var deltaSpec = +d3.select("#deltaspecinput" + (index+1)).property("value");
-    tablesExtractOnParameters(measSections, selParams[index], paramName, deltaSpec, useDateTime);
+    var cpmData = tablesExtractOnParameters(measSections, selParams[index], paramName, deltaSpec, useDateTime);
+    renderTable(d3.select("#container"), cpmData);
+    computeCPM(cpmData, paramName, deltaSpec, cpmSchema);
 };
 
 function renderTable(element, data) {
@@ -333,11 +409,19 @@ function renderTable(element, data) {
         .text(function(d) { return d; });
 }
 
-var renderParameters = function(measSections, onChoice) {
+function createParametersDialog(measSections) {
     var div = d3.select("#parameters");
 
-    var dtpar = div.append("p")
-    dtpar.html("Include Date/Time")
+    var cpmpar = div.append("p");
+    cpmpar.append("h3").html("Choose CPM computation type");
+    var schema1 = cpmpar.append("input").attr("type", "radio").attr("id", "cpm-schema-1").attr("name", "cpm-schema").attr("checked", true);
+    cpmpar.append("label").attr("for", "cpm-schema-1").text("Toolset");
+    cpmpar.append("br");
+    var schema2 = cpmpar.append("input").attr("type", "radio").attr("id", "cpm-schema-2").attr("name", "cpm-schema");
+    cpmpar.append("label").attr("for", "cpm-schema-2").text("Single Tool");
+
+    var dtpar = div.append("p");
+    dtpar.html("Include Date/Time");
     var checktime = dtpar.append("input").attr("type", "checkbox").attr("value", "datetime");
 
     var sel = div.append("select");
@@ -398,43 +482,15 @@ var renderParameters = function(measSections, onChoice) {
             }
         });
 
-    var nsButton = div.append("button").text("Next")
-        .on("click", function() { onChoice(measSections, selParams, checktime.property("checked")); });
-}
-
-var adjustSectionsDateTime = function(measSections, datetime_min) {
-    for (var k = 0; k < measSections.length; k++) {
-        var section = measSections[k];
-        var table = section.table;
-        var timeIndex = table.colIndexOf("Time") - 1;
-        for (var i = 0; i < table.rows(); i++) {
-            table.elements[i][timeIndex] = table.elements[i][timeIndex] - datetime_min;
+    var getCPMSchema = function() {
+        var radios = document.getElementsByName("cpm-schema");
+        for (var k = 0; k < radios.length; k++) {
+            if (radios[k].checked) return k;
         }
     }
-}
 
-function loadFiles(files) {
-    var measSections = [];
-    var count = 0;
-    var datetime_min = null;
-    for (var i = 0; i < files.length; i++) {
-        var onLoadFileIndexed = function(index) {
-            return function(evt) {
-                if (evt.target.readyState == FileReader.DONE) {
-                    var parser = new FXParser(evt.target.result, {groupRepeat: 5, sections: measSections});
-                    var dt = parser.readDateTime();
-                    datetime_min = (datetime_min === null || dt < datetime_min) ? dt : datetime_min;
-                    parser.readAll({tool: files[index].tool, reprod: files[index].reprod, time: dt});
-                    count++;
-                    if (count >= files.length) {
-                        adjustSectionsDateTime(measSections, datetime_min);
-                        renderParameters(measSections, onParameterChoice);
-                    }
-                }
-            };
-        };
-        var reader = new FileReader();
-        reader.onloadend = onLoadFileIndexed(i);
-        reader.readAsText(files[i].handler);
-    }
-};
+    var nsButton = div.append("button").text("Next")
+        .on("click", function() {
+            onParameterChoice(measSections, selParams, checktime.property("checked"), getCPMSchema());
+        });
+}
