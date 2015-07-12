@@ -60,7 +60,6 @@ FXParser.prototype = {
                     var m = datere.exec(row[1]);
                     if (m) {
                         var sec = Number(m[6]) + Number(m[5])*60 + Number(m[4]) * 3600 + Number(m[2]) * 24 * 3600;
-                        console.log('seconds', sec);
                         return sec / 3600;
                     }
                 }
