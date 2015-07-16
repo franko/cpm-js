@@ -327,11 +327,13 @@ function computeCPM(data, measuredParameter, deltaSpec, cpmSchema) {
             var K = LinEst.buildFactorMatrix(dataTool, cpm_factors);
             var S = LinEst.buildFactorSumVector(dataTool, cpm_factors, measVector);
             var est = K.inverse().multiply(S); // Estimates.
-            var statTool = Cpm.elementResidualStats(dataTool, tool_factor, cpm_factors, est, measVector);
-            statData.push([tool].concat(statTool));
+            var toolStat = Cpm.elementResidualStats(dataTool, tool_factor, cpm_factors, est, measVector);
+            // Unbias the StdDev estimation in toolStat by using the nb of observation, toolStat[2],
+            // and the nb of calculated fil parameters, cpm_factors.length.
+            toolStat[1] = toolStat[1] * Math.sqrt(toolStat[2] / (toolStat[2] - cpm_factors.length));
+            statData.push([tool].concat(toolStat));
         }
         stat = DataFrame.create(statData, ["Tool", "Mean", "StdDev", "Count"]);
-        stdDevEstimateBiasCorrect(stat, cpm_factors);
     }
 
     var cpmTable = Cpm.computeByTool(stat, deltaSpec);
