@@ -4,7 +4,8 @@ var createParametersDialog
 
 /* ********************** File List / Read Files ****************** */
 
-/* Given a "file" return a list with [filename, toolname, reprod].
+/* Given a "file" return a list with [index, filename, toolname, reprod].
+   The index is used to generate the "file check" field.
    As for the "file" argument it is just required to have a "name" field.
    The toolname and reprod is guessed from the filename. */
 var filenameToolFields = function(file, i) {
@@ -12,9 +13,9 @@ var filenameToolFields = function(file, i) {
     var filename = file.name;
     var match = nameRe.exec(filename);
     if (match) {
-        return [filename, match[1], match[2]];
+        return [i, filename, match[1], match[2]];
     } else {
-        return [filename, "Tool " + String.fromCharCode(65 + i), "1"];
+        return [i, filename, "Tool " + String.fromCharCode(65 + i), "1"];
     }
 };
 
@@ -23,13 +24,18 @@ var fileListRowId = function(i) { return "fileListRow" + String(i); }
 /* Create a Table with the filename, tool name and reprod number.
    Identifies each row with the Id given by fileListRowId. */
 var createFileListTable = function(containerId, files) {
-    var table = d3.select(containerId).append("table")
+    var table = d3.select(containerId).append("table").attr("class", "fixed");
+    table.selectAll("col")
+        .data([20, 200, 80, 80])
+        .enter()
+        .append("col").attr("width", function(d) { return String(d) + "pt"; });
+
     var thead = table.append("thead");
     var tbody = table.append("tbody").attr("id", "filetable");
 
     thead.append("tr")
         .selectAll("th")
-        .data(["Filename", "Tool", "Reprod"])
+        .data(["", "Filename", "Tool", "Reprod"])
         .enter()
         .append("th")
             .text(function(column) { return column; });
@@ -45,8 +51,10 @@ var createFileListTable = function(containerId, files) {
         .data(filenameToolFields)
         .enter().append("td")
         .html(function(d, i) {
-            if (i == 1 || i == 2) {
-                return "<input type=\"text\" value=" + JSON.stringify(d) + ">";
+            if (i == 0) {
+                return "<div id=" + JSON.stringify("filecheck" + String(d)) + ">";
+            } else if (i == 2 || i == 3) {
+                return "<input type=\"text\" size=\"8\" value=" + JSON.stringify(d) + ">";
             } else {
                 return d;
             }
@@ -59,8 +67,8 @@ var onButtonReadFiles = function(files) {
     var annFiles = [];
     for (var k = 0; k < files.length; k++) {
         var tr = document.getElementById(fileListRowId(k));
-        var tool = tr.childNodes[1].firstChild.value;
-        var reprod = Number(tr.childNodes[2].firstChild.value);
+        var tool = tr.childNodes[2].firstChild.value;
+        var reprod = Number(tr.childNodes[3].firstChild.value);
         annFiles.push({handler: files[k], tool: tool, reprod: reprod});
     }
     loadFiles(annFiles);
@@ -107,6 +115,8 @@ function loadFiles(files) {
                         datetime_min = (datetime_min === null || dt < datetime_min) ? dt : datetime_min;
                         parser.readAll({tool: files[index].tool, reprod: files[index].reprod, time: dt});
                         count++;
+                        var fcheck = document.getElementById("filecheck" + String(index));
+                        fcheck.innerHTML = '<font color="#0b0">&#x2714;</font>';
                         if (count + not_valid >= files.length) {
                             adjustSectionsDateTime(measSections, datetime_min);
                             createParametersDialog(measSections);
@@ -114,8 +124,10 @@ function loadFiles(files) {
                     }
                     catch (err) {
                         var msg_div = document.createElement('div');
-                        msg_div.innerHTML = '<span class="error"> Error loading file ' + files[index].handler.name + ': ' + err + '</span>';
+                        msg_div.innerHTML = '<span class="error"> Error loading file ' + JSON.stringify(files[index].handler.name) + ': ' + err + '</span>';
                         html_par.appendChild(msg_div);
+                        var fcheck = document.getElementById("filecheck" + String(index));
+                        fcheck.innerHTML = '<font color="#d00">&#x2718;</font>';
                         not_valid++;
                     }
                 }
