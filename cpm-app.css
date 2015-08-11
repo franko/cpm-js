@@ -31,3 +31,6 @@
 .x.axis path {
   display: none;
 }
+.error {
+  color: #cc0000;
+}

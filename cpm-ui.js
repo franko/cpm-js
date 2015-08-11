@@ -92,21 +92,31 @@ var adjustSectionsDateTime = function(measSections, datetime_min) {
 }
 
 function loadFiles(files) {
+    // HTML elements used to write errors.
+    var html_par = document.getElementById("file_select");
     var measSections = [];
-    var count = 0;
+    var count = 0, not_valid = 0;
     var datetime_min = null;
     for (var i = 0; i < files.length; i++) {
         var onLoadFileIndexed = function(index) {
             return function(evt) {
                 if (evt.target.readyState == FileReader.DONE) {
-                    var parser = new FXParser(evt.target.result, {groupRepeat: 5, sections: measSections});
-                    var dt = parser.readDateTime();
-                    datetime_min = (datetime_min === null || dt < datetime_min) ? dt : datetime_min;
-                    parser.readAll({tool: files[index].tool, reprod: files[index].reprod, time: dt});
-                    count++;
-                    if (count >= files.length) {
-                        adjustSectionsDateTime(measSections, datetime_min);
-                        createParametersDialog(measSections);
+                    try {
+                        var parser = new FXParser(evt.target.result, {groupRepeat: 5, sections: measSections});
+                        var dt = parser.readDateTime();
+                        datetime_min = (datetime_min === null || dt < datetime_min) ? dt : datetime_min;
+                        parser.readAll({tool: files[index].tool, reprod: files[index].reprod, time: dt});
+                        count++;
+                        if (count + not_valid >= files.length) {
+                            adjustSectionsDateTime(measSections, datetime_min);
+                            createParametersDialog(measSections);
+                        }
+                    }
+                    catch (err) {
+                        var msg_div = document.createElement('div');
+                        msg_div.innerHTML = '<span class="error"> Error loading file ' + files[index].handler.name + ': ' + err + '</span>';
+                        html_par.appendChild(msg_div);
+                        not_valid++;
                     }
                 }
             };

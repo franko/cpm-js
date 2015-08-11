@@ -8,12 +8,36 @@ var list_tonumber = function(row) {
     }
 };
 
+var csvLineSplit = function(line, sep) {
+    var row = line.replace("\r", "").split(sep);
+    if (row.length > 0 && row[row.length - 1].match(/^\s*$/)) {
+        row.pop();
+    }
+    return row;
+}
+
+var findListSeparator = function(line) {
+    var row_comma = csvLineSplit(line, ",");
+    if (row_comma.length >= 2) {
+        return ",";
+    }
+    var row_semi = csvLineSplit(line, ";");
+    if (row_semi.length >= 2) {
+        return ";";
+    }
+    throw "unknown format";
+}
+
 var csvReader = function(text) {
     var lines = text.split("\n");
     var i = 0;
+    if (lines.length == 0) {
+        throw "file is empty";
+    }
+    var sep = findListSeparator(lines[0]);
     var next = function() {
         if (i < lines.length) {
-            var row = lines[i++].replace("\r", "").split(",");
+            var row = csvLineSplit(lines[i++], sep);
             list_tonumber(row);
             return row;
         }
