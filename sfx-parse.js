@@ -62,6 +62,20 @@ var tagsDoMatch = function(tagList, a, b) {
     return true;
 };
 
+var not_empty_string = function(s) {
+    var ere = /^\s*$/;
+    return (ere.exec(s) === null);
+}
+
+var clean_csv_string = function(s) {
+    if (typeof(s) == "string") {
+        s = s.replace(/^\s*"?/, "");
+        return s.replace(/"?\s*$/, "");
+    } else {
+        return s;
+    }
+}
+
 FXParser = function(text, options) {
     this.reader = csvReader(text);
     this.measSections = (options && options.sections) ? options.sections : [];
@@ -92,18 +106,20 @@ FXParser.prototype = {
         return 0;
     },
 
-    readMeasurements: function(attrs) {
+    readMeasurements: function(attrs, headers) {
         var meas = [];
+        var col_start = 1, col_end = headers.length;
         var gr = this.groupRepeat;
         for (var row = this.next(); row; row = this.next()) {
             if (!row[0]) break;
             var n = row[0] - 1;
-            var data;
+            var repeat_site;
             if (gr) {
-                data = [(n % gr) + 1, Math.floor(n / gr) + 1].concat(row.slice(1, -3));
+                repeat_site = [(n % gr) + 1, Math.floor(n / gr) + 1];
             } else {
-                data = row.slice(0, -3);
+                repeat_site = row.slice(0, 1);
             }
+            var data = repeat_site.concat(row.slice(col_start, col_end));
             meas.push(attrs.concat(data));
         }
         return meas;
@@ -137,13 +153,13 @@ FXParser.prototype = {
         for (var row = this.next(); row; row = this.next()) {
             var key = row[0];
             if (key === "RESULT TYPE") {
-                headers = row.slice(0, -1);
+                headers = row.filter(not_empty_string).map(clean_csv_string);
                 headers[0] = "Site";
             } else if (collectTag(key)) {
-                info[key] = row[1];
+                info[key] = clean_csv_string(row[1]);
             } else if (key == "Site #") {
                 var rowTags = sectionTags.map(function(d) { return info[d]; });
-                var meas = this.readMeasurements(rowTags);
+                var meas = this.readMeasurements(rowTags, headers);
                 this.mergeMeasurements(info, meas, headers);
                 return true;
             }
