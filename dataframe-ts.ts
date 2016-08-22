@@ -103,7 +103,7 @@ module LinAlg {
                 //get the new diagonal
                 e = C[i][i];
                 //if it's still 0, not invertable (error)
-                if (e == 0) { return }
+                if (e == 0) { throw Error("singular matrix"); }
             }
 
             // Scale this row down by e (so we have a 1 on the diagonal)

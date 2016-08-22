@@ -126,7 +126,7 @@ module CPM {
         statHeaders.push("Count");
         let statTable = new DataFrame<number | string>(stat, statHeaders);
         stdDevEstimateBiasCorrect(statTable, factors);
-        return stat;
+        return statTable;
     };
 
     export function gaussianDens(u: number, s: number, x: number) {
@@ -215,11 +215,10 @@ module CPM {
         let toolIndex = data.colIndexOf("Tool");
         let toolLevels = data.findLevels("Tool");
 
-        let stat;
         let siteLevels = data.findLevels("Site");
-        let measVector = data.col(measuredParamIndex);
+        let measVector = <Vector<number>> data.col(measuredParamIndex);
 
-        let cpm_factors = [
+        let cpm_factors: NSFactorSpec[] = [
             [] // Represent the grand average.
         ];
 
@@ -240,11 +239,11 @@ module CPM {
 
         let K = LinEst.buildFactorMatrix(data, cpm_factors);
         let S = LinEst.buildFactorSumVector(data, cpm_factors, measVector);
-        let est = K.inverse().multiply(S); // Estimates.
+        let est = LinAlg.multiplyVector(LinAlg.inverse(K), S); // Estimates.
 
-        stat = Cpm.residualMeanSquares(data, tool_factors, cpm_factors, est, measVector);
+        let stat = CPM.residualMeanSquares(data, tool_factors, cpm_factors, est, measVector);
 
-        let cpmTable = Cpm.computeByTool(stat, deltaSpec);
+        let cpmTable = CPM.computeByTool(stat, deltaSpec);
 
         for (let i = 0; i < toolLevels.length; i++) {
             let dataTool = data.filter([{ column: toolIndex, value: toolLevels[i] }]);
